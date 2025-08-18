@@ -4,6 +4,18 @@ import jwt from 'jsonwebtoken';
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import paymentsRouter from './payments-api';
+import { db } from '../db';
+import { users, partners, User } from '@shared/schema';
+import { eq } from 'drizzle-orm';
+
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+    }
+  }
+}
 
 const scryptAsync = promisify(scrypt);
 
@@ -17,15 +29,15 @@ async function comparePasswords(supplied: string, stored: string) {
 const router = express.Router();
 
 // Middleware para verificar el token JWT de Vecinos
-const authenticateJWT = async (req: express.Request, res: express.Response, next: express.Function) => {
+const authenticateJWT = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   const authHeader = req.headers.authorization;
   
   if (authHeader) {
     const token = authHeader.split(' ')[1];
     
     try {
-      const user = jwt.verify(token, process.env.JWT_SECRET || 'vecinos-secret');
-      req.user = user;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'vecinos-secret') as any;
+      req.user = decoded;
       next();
     } catch (error) {
       return res.sendStatus(403);
@@ -36,7 +48,7 @@ const authenticateJWT = async (req: express.Request, res: express.Response, next
 };
 
 // Middleware para verificar si el usuario es un socio Vecinos
-const isPartner = async (req: express.Request, res: express.Response, next: express.Function) => {
+const isPartner = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (!req.user || req.user.role !== 'partner') {
     return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de socio.' });
   }
@@ -45,7 +57,7 @@ const isPartner = async (req: express.Request, res: express.Response, next: expr
 };
 
 // Middleware para verificar si el usuario es un vendedor
-const isSeller = async (req: express.Request, res: express.Response, next: express.Function) => {
+const isSeller = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (!req.user || req.user.role !== 'seller') {
     return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de vendedor.' });
   }
@@ -54,7 +66,7 @@ const isSeller = async (req: express.Request, res: express.Response, next: expre
 };
 
 // Middleware para verificar si el usuario es un supervisor
-const isSupervisor = async (req: express.Request, res: express.Response, next: express.Function) => {
+const isSupervisor = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (!req.user || req.user.role !== 'supervisor') {
     return res.status(403).json({ message: 'Acceso denegado. Se requiere rol de supervisor.' });
   }
