@@ -20,7 +20,7 @@ export const documentCategories = pgTable('document_categories', {
   description: text('description'),
   icon: text('icon'), // Nombre del icono de Lucide
   color: text('color'), // Color en formato hex para UI
-  parentId: integer('parent_id').references(() => documentCategories.id), // Para categorías anidadas
+  parentId: integer('parent_id'), // Para categorías anidadas - se configurará la referencia después
   metadata: json('metadata'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at')

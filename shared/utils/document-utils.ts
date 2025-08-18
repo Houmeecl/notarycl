@@ -47,18 +47,14 @@ export function generateSignatureData(userId: number, documentId: number, verifi
  * @param verificationCode Código de verificación
  * @returns String con el SVG del código QR
  */
-export function generateQRCodeSVG(verificationCode: string): string {
+export async function generateQRCodeSVG(verificationCode: string): Promise<string> {
   try {
     // URL de verificación
     const verificationUrl = `https://www.cerfidoc.cl/verificar-documento/${verificationCode}`;
     
-    // Generar el código QR como SVG de forma sincrónica
-    // Nota: Convertimos la Promise<string> a string sincrónico para mantener compatibilidad
-    let svgContent = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Cargando QR</text></svg>';
-    
-    // Enfoque sincrónico usando la API síncrona de qrcode
+    // Generar el código QR como SVG de forma asíncrona
     try {
-      svgContent = qrcode.toString(verificationUrl, { 
+      const svgContent = await qrcode.toString(verificationUrl, { 
         type: 'svg',
         errorCorrectionLevel: 'H', // Alta corrección de errores
         margin: 1,
@@ -68,11 +64,11 @@ export function generateQRCodeSVG(verificationCode: string): string {
           light: '#ffffff' // Color claro (hexadecimal)
         }
       });
+      return svgContent;
     } catch (e) {
-      console.error('Error en generación síncrona de QR:', e);
+      console.error('Error en generación de QR:', e);
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Error QR</text></svg>';
     }
-    
-    return svgContent;
   } catch (error) {
     console.error('Error generando código QR:', error);
     return '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="10" y="50" fill="red">Error QR</text></svg>';

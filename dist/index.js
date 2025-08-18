@@ -110,7 +110,7 @@ __export(schema_exports, {
   partnerSales: () => partnerSales,
   partnerStores: () => partnerStores,
   partnerTransactions: () => partnerTransactions,
-  partners: () => partners2,
+  partners: () => partners,
   posProviders: () => posProviders,
   posTransactions: () => posTransactions,
   quickAchievements: () => quickAchievements,
@@ -123,7 +123,7 @@ __export(schema_exports, {
   userClaimedRewards: () => userClaimedRewards,
   userGameProfiles: () => userGameProfiles,
   userInteractionHistory: () => userInteractionHistory,
-  users: () => users2,
+  users: () => users,
   verificationBadges: () => verificationBadges,
   verificationChallenges: () => verificationChallenges,
   videoCallServices: () => videoCallServices,
@@ -145,8 +145,8 @@ var documentCategories = pgTable("document_categories", {
   // Nombre del icono de Lucide
   color: text("color"),
   // Color en formato hex para UI
-  parentId: integer("parent_id").references(() => documentCategories.id),
-  // Para categorías anidadas
+  parentId: integer("parent_id"),
+  // Para categorías anidadas - se configurará la referencia después
   metadata: json("metadata"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at")
@@ -165,9 +165,9 @@ var documents = pgTable("documents", {
   accessLevel: text("access_level").default("private"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow(),
-  createdBy: integer("created_by").references(() => users2.id),
+  createdBy: integer("created_by").references(() => users.id),
   updatedAt: timestamp("updated_at"),
-  updatedBy: integer("updated_by").references(() => users2.id),
+  updatedBy: integer("updated_by").references(() => users.id),
   metadata: json("metadata")
 });
 var documentVersions = pgTable("document_versions", {
@@ -180,7 +180,7 @@ var documentVersions = pgTable("document_versions", {
   fileType: text("file_type").notNull(),
   changes: text("changes"),
   createdAt: timestamp("created_at").defaultNow(),
-  createdBy: integer("created_by").references(() => users2.id),
+  createdBy: integer("created_by").references(() => users.id),
   metadata: json("metadata")
 });
 var documentTags = pgTable("document_tags", {
@@ -192,13 +192,13 @@ var documentTags = pgTable("document_tags", {
 var documentShares = pgTable("document_shares", {
   id: serial("id").primaryKey(),
   documentId: integer("document_id").references(() => documents.id).notNull(),
-  userId: integer("user_id").references(() => users2.id),
+  userId: integer("user_id").references(() => users.id),
   email: text("email"),
   accessCode: text("access_code"),
   accessLevel: text("access_level").default("read"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").defaultNow(),
-  createdBy: integer("created_by").references(() => users2.id),
+  createdBy: integer("created_by").references(() => users.id),
   isUsed: boolean("is_used").default(false),
   usedAt: timestamp("used_at")
 });
@@ -215,10 +215,10 @@ var notaryDocuments = pgTable("notary_documents", {
   documentType: text("document_type").notNull(),
   // declaración jurada, poder simple, etc.
   urgency: text("urgency").default("normal"),
-  userId: integer("user_id").references(() => users2.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   status: text("status").notNull().default("pending"),
   verificationCode: text("verification_code").unique().notNull(),
-  certifiedBy: integer("certified_by").references(() => users2.id),
+  certifiedBy: integer("certified_by").references(() => users.id),
   certifiedAt: timestamp("certified_at"),
   certifiedFilePath: text("certified_file_path"),
   certifiedFileName: text("certified_file_name"),
@@ -228,7 +228,7 @@ var notaryDocuments = pgTable("notary_documents", {
 var notaryCertifications = pgTable("notary_certifications", {
   id: serial("id").primaryKey(),
   documentId: integer("document_id").references(() => notaryDocuments.id).notNull(),
-  certifierId: integer("certifier_id").references(() => users2.id).notNull(),
+  certifierId: integer("certifier_id").references(() => users.id).notNull(),
   certificationDate: timestamp("certification_date").notNull(),
   certificationMethod: text("certification_method").notNull(),
   // standard, advanced, video
@@ -245,11 +245,11 @@ var notaryProcesses = pgTable("notary_processes", {
   title: text("title").notNull(),
   description: text("description"),
   processType: text("process_type").notNull(),
-  userId: integer("user_id").references(() => users2.id).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   status: text("status").notNull().default("initiated"),
   currentStep: integer("current_step").default(1),
   totalSteps: integer("total_steps").notNull(),
-  assignedTo: integer("assigned_to").references(() => users2.id),
+  assignedTo: integer("assigned_to").references(() => users.id),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at"),
@@ -266,9 +266,9 @@ var notaryTemplates = pgTable("notary_templates", {
   // JSON Schema para el formulario
   active: boolean("active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-  createdBy: integer("created_by").references(() => users2.id),
+  createdBy: integer("created_by").references(() => users.id),
   updatedAt: timestamp("updated_at"),
-  updatedBy: integer("updated_by").references(() => users2.id)
+  updatedBy: integer("updated_by").references(() => users.id)
 });
 var insertDocumentCategorySchema = createInsertSchema(documentCategories);
 var insertDocumentSchema = createInsertSchema(documents, {
@@ -307,7 +307,7 @@ var analyticsEvents = pgTable2("analytics_events", {
   // Additional data related to the event
   createdAt: timestamp2("created_at").defaultNow()
 });
-var users2 = pgTable2("users", {
+var users = pgTable2("users", {
   id: serial2("id").primaryKey(),
   username: text2("username").notNull().unique(),
   password: text2("password").notNull(),
@@ -323,9 +323,11 @@ var users2 = pgTable2("users", {
   region: text2("region"),
   comuna: text2("comuna"),
   // Community/District
+  phone: text2("phone"),
+  // Phone number
   createdAt: timestamp2("created_at").defaultNow()
 });
-var insertUserSchema = createInsertSchema2(users2).pick({
+var insertUserSchema = createInsertSchema2(users).pick({
   username: true,
   password: true,
   email: true,
@@ -335,7 +337,8 @@ var insertUserSchema = createInsertSchema2(users2).pick({
   businessName: true,
   address: true,
   region: true,
-  comuna: true
+  comuna: true,
+  phone: true
 });
 var documentCategories2 = pgTable2("document_categories", {
   id: serial2("id").primaryKey(),
@@ -572,7 +575,7 @@ var insertVideoCallSessionSchema = createInsertSchema2(videoCallSessions).pick({
   serviceId: true,
   scheduledAt: true
 });
-var partners2 = pgTable2("partners", {
+var partners = pgTable2("partners", {
   id: serial2("id").primaryKey(),
   userId: integer2("user_id").notNull(),
   // Associated user account for login
@@ -588,6 +591,10 @@ var partners2 = pgTable2("partners", {
   status: text2("status").notNull().default("pending"),
   // pending, approved, rejected
   notes: text2("notes"),
+  commissionRate: real("commission_rate").default(0.15),
+  // Default 15%
+  sellerId: text2("seller_id"),
+  // External seller ID
   // POS integration fields
   posIntegrated: boolean2("pos_integrated").default(false),
   posProvider: text2("pos_provider"),
@@ -600,7 +607,7 @@ var partners2 = pgTable2("partners", {
 });
 var partnerStores = pgTable2("partner_stores", {
   id: serial2("id").primaryKey(),
-  ownerId: integer2("owner_id").notNull().references(() => users2.id),
+  ownerId: integer2("owner_id").notNull().references(() => users.id),
   name: text2("name").notNull(),
   address: text2("address").notNull(),
   storeCode: text2("store_code").notNull().unique(),
@@ -632,7 +639,7 @@ var partnerTransactions = pgTable2("partner_transactions", {
   paymentReference: text2("payment_reference"),
   createdAt: timestamp2("created_at").defaultNow()
 });
-var insertPartnerSchema = createInsertSchema2(partners2).pick({
+var insertPartnerSchema = createInsertSchema2(partners).pick({
   storeName: true,
   managerName: true,
   region: true,
@@ -645,7 +652,7 @@ var insertPartnerSchema = createInsertSchema2(partners2).pick({
 });
 var posTransactions = pgTable2("pos_transactions", {
   id: serial2("id").primaryKey(),
-  partnerId: integer2("partner_id").notNull().references(() => partners2.id),
+  partnerId: integer2("partner_id").notNull().references(() => partners.id),
   transactionDate: timestamp2("transaction_date", { mode: "date" }).notNull(),
   transactionId: text2("transaction_id"),
   posReference: text2("pos_reference"),
@@ -656,6 +663,8 @@ var posTransactions = pgTable2("pos_transactions", {
   commissionAmount: integer2("commission_amount"),
   // Commission in cents
   commissionRate: real("commission_rate"),
+  paymentMethod: text2("payment_method"),
+  // Payment method used
   synchronized: boolean2("synchronized").default(true).notNull(),
   metadata: jsonb("metadata"),
   // Additional POS data
@@ -670,6 +679,7 @@ var insertPosTransactionSchema = createInsertSchema2(posTransactions).pick({
   items: true,
   commissionAmount: true,
   commissionRate: true,
+  paymentMethod: true,
   synchronized: true,
   metadata: true
 });
@@ -760,6 +770,8 @@ var crmLeads = pgTable2("crm_leads", {
   phone: text2("phone").notNull(),
   rut: text2("rut"),
   documentType: text2("document_type"),
+  documentId: integer2("document_id"),
+  // Associated document ID
   status: text2("status").notNull().default("initiated"),
   // initiated, data_completed, payment_completed, certified, incomplete
   source: text2("source").notNull().default("webapp"),
@@ -782,6 +794,7 @@ var insertCrmLeadSchema = createInsertSchema2(crmLeads).pick({
   phone: true,
   rut: true,
   documentType: true,
+  documentId: true,
   status: true,
   source: true,
   pipelineStage: true,
@@ -809,6 +822,8 @@ var whatsappMessages = pgTable2("whatsapp_messages", {
   metadata: jsonb("metadata"),
   // Additional data
   sentAt: timestamp2("sent_at").defaultNow(),
+  receivedAt: timestamp2("received_at"),
+  // When message was received
   deliveredAt: timestamp2("delivered_at"),
   readAt: timestamp2("read_at")
 });
@@ -822,7 +837,8 @@ var insertWhatsappMessageSchema = createInsertSchema2(whatsappMessages).pick({
   templateName: true,
   status: true,
   externalMessageId: true,
-  metadata: true
+  metadata: true,
+  receivedAt: true
 });
 var dialogflowSessions = pgTable2("dialogflow_sessions", {
   id: serial2("id").primaryKey(),
@@ -979,6 +995,12 @@ var verificationBadges = pgTable2("verification_badges", {
   tier: text2("tier").notNull(),
   // bronce, plata, oro, platino, diamante
   isRare: boolean2("is_rare").notNull().default(false),
+  type: text2("type"),
+  // social, achievement, etc.
+  level: integer2("level"),
+  // Level for the badge
+  badgeImage: text2("badge_image"),
+  // Alternative image field
   createdAt: timestamp2("created_at").defaultNow()
 });
 var insertVerificationBadgeSchema = createInsertSchema2(verificationBadges).pick({
@@ -987,20 +1009,26 @@ var insertVerificationBadgeSchema = createInsertSchema2(verificationBadges).pick
   imageUrl: true,
   requiredPoints: true,
   tier: true,
-  isRare: true
+  isRare: true,
+  type: true,
+  level: true,
+  badgeImage: true
 });
 var userBadges = pgTable2("user_badges", {
   id: serial2("id").primaryKey(),
   userId: integer2("user_id").notNull(),
   badgeId: integer2("badge_id").notNull(),
   earnedAt: timestamp2("earned_at").defaultNow(),
-  showcaseOrder: integer2("showcase_order")
+  showcaseOrder: integer2("showcase_order"),
   // posición para mostrar en perfil (NULL si no se muestra)
+  metadata: jsonb("metadata")
+  // Additional metadata for the badge
 });
 var insertUserBadgeSchema = createInsertSchema2(userBadges).pick({
   userId: true,
   badgeId: true,
-  showcaseOrder: true
+  showcaseOrder: true,
+  metadata: true
 });
 var userGameProfiles = pgTable2("user_game_profiles", {
   id: serial2("id").primaryKey(),
@@ -1223,7 +1251,7 @@ var insertUserAchievementProgressSchema = createInsertSchema2(userAchievementPro
 });
 var notaryProfiles = pgTable2("notary_profiles", {
   id: serial2("id").primaryKey(),
-  userId: integer2("user_id").notNull().references(() => users2.id),
+  userId: integer2("user_id").notNull().references(() => users.id),
   registryNumber: text2("registry_number").notNull().unique(),
   licenseNumber: text2("license_number").notNull().unique(),
   jurisdiction: text2("jurisdiction").notNull(),
@@ -1358,7 +1386,7 @@ var insertNotaryFeeScheduleSchema = createInsertSchema2(notaryFeeSchedules).pick
 var notaryAppointments = pgTable2("notary_appointments", {
   id: serial2("id").primaryKey(),
   notaryId: integer2("notary_id").notNull().references(() => notaryProfiles.id),
-  clientId: integer2("client_id").notNull().references(() => users2.id),
+  clientId: integer2("client_id").notNull().references(() => users.id),
   serviceType: text2("service_type").notNull(),
   appointmentDate: timestamp2("appointment_date").notNull(),
   duration: integer2("duration").notNull().default(30),
@@ -1396,7 +1424,7 @@ var insertNotaryAppointmentSchema = createInsertSchema2(notaryAppointments).pick
 var notaryBiometricVerifications = pgTable2("notary_biometric_verifications", {
   id: serial2("id").primaryKey(),
   notaryId: integer2("notary_id").notNull().references(() => notaryProfiles.id),
-  clientId: integer2("client_id").notNull().references(() => users2.id),
+  clientId: integer2("client_id").notNull().references(() => users.id),
   deedId: integer2("deed_id").references(() => notaryDeeds.id),
   verificationType: text2("verification_type").notNull(),
   // fingerprint, face, id_scan
@@ -1494,7 +1522,7 @@ import connectPg from "connect-pg-simple";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
-import { eq as eq2, and, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 neonConfig.webSocketConstructor = ws;
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -1502,10 +1530,10 @@ if (!process.env.DATABASE_URL) {
   );
 }
 var pool = new Pool({ connectionString: process.env.DATABASE_URL });
-var db2 = drizzle({ client: pool, schema: schema_exports });
+var db = drizzle({ client: pool, schema: schema_exports });
 
 // server/storage.ts
-import { eq as eq3, and as and2, asc, sql as sql2 } from "drizzle-orm";
+import { eq as eq2, and as and2, asc, sql as sql2 } from "drizzle-orm";
 
 // shared/utils/password-util.ts
 function generateRandomPassword(length = 10, includeUppercase = true, includeNumbers = true, includeSymbols = true) {
@@ -2279,12 +2307,12 @@ var MemStorage = class {
     const oneWeekAgo = new Date(today);
     oneWeekAgo.setDate(today.getDate() - 7);
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const users3 = Array.from(this.users.values());
+    const users2 = Array.from(this.users.values());
     return {
-      totalUsers: users3.length,
-      newUsersToday: users3.filter((user) => user.createdAt >= startOfDay).length,
-      newUsersThisWeek: users3.filter((user) => user.createdAt >= oneWeekAgo).length,
-      newUsersThisMonth: users3.filter((user) => user.createdAt >= startOfMonth).length
+      totalUsers: users2.length,
+      newUsersToday: users2.filter((user) => user.createdAt >= startOfDay).length,
+      newUsersThisWeek: users2.filter((user) => user.createdAt >= oneWeekAgo).length,
+      newUsersThisMonth: users2.filter((user) => user.createdAt >= startOfMonth).length
     };
   }
   async getDocumentStats() {
@@ -2340,7 +2368,7 @@ import { promisify } from "util";
 // server/vecinos/payments-api.ts
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
-import { eq as eq4, sql as sql3 } from "drizzle-orm";
+import { eq as eq3, sql as sql3 } from "drizzle-orm";
 var paymentsRouter = express.Router();
 paymentsRouter.post("/process", async (req, res) => {
   const {
@@ -2363,8 +2391,8 @@ paymentsRouter.post("/process", async (req, res) => {
     const supervisorCommission = amount * 0.02;
     const sellerCommission = amount * 0.01;
     const netAmount = amount - (partnerCommission + supervisorCommission + sellerCommission);
-    const [partner] = await db2.query.partners.findMany({
-      where: eq4(sql3`LOWER(code)`, partnerCode.toLowerCase()),
+    const [partner] = await db.query.partners.findMany({
+      where: eq3(sql3`LOWER(code)`, partnerCode.toLowerCase()),
       limit: 1
     });
     if (!partner) {
@@ -2375,12 +2403,12 @@ paymentsRouter.post("/process", async (req, res) => {
     const sellerId = partner.sellerId;
     let supervisorId = null;
     if (sellerId) {
-      const [seller] = await db2.query.users.findMany({
-        where: eq4(sql3`id`, sellerId),
+      const [seller] = await db.query.users.findMany({
+        where: eq3(sql3`id`, sellerId),
         limit: 1
       });
       if (seller) {
-        const [supervisorAssignment] = await db2.select().from(sql3`seller_assignments`).where(eq4(sql3`seller_id`, sellerId)).limit(1);
+        const [supervisorAssignment] = await db.select().from(sql3`seller_assignments`).where(eq3(sql3`seller_id`, sellerId)).limit(1);
         if (supervisorAssignment) {
           supervisorId = supervisorAssignment.supervisorId;
         }
@@ -2405,11 +2433,11 @@ paymentsRouter.post("/process", async (req, res) => {
       createdAt: /* @__PURE__ */ new Date()
     };
     const validatedData = insertPosTransactionSchema.parse(newTransaction);
-    const [insertedTransaction] = await db2.insert(posTransactions).values(validatedData).returning();
-    await db2.query.partners.update().set({
+    const [insertedTransaction] = await db.insert(posTransactions).values(validatedData).returning();
+    await db.query.partners.update().set({
       totalTransactions: sql3`total_transactions + 1`,
       totalCommissions: sql3`total_commissions + ${partnerCommission}`
-    }).where(eq4(sql3`id`, partner.id));
+    }).where(eq3(sql3`id`, partner.id));
     res.status(200).json({
       transactionId,
       status: "completed",
@@ -2428,8 +2456,8 @@ paymentsRouter.post("/process", async (req, res) => {
 paymentsRouter.get("/:transactionId", async (req, res) => {
   try {
     const { transactionId } = req.params;
-    const [transaction] = await db2.query.posTransactions.findMany({
-      where: eq4(posTransactions.transactionId, transactionId),
+    const [transaction] = await db.query.posTransactions.findMany({
+      where: eq3(posTransactions.transactionId, transactionId),
       limit: 1
     });
     if (!transaction) {
@@ -2453,8 +2481,8 @@ paymentsRouter.get("/partner/:partnerCode", async (req, res) => {
     const limitNum = parseInt(limit, 10);
     const pageNum = parseInt(page, 10);
     const offset = (pageNum - 1) * limitNum;
-    const [partner] = await db2.query.partners.findMany({
-      where: eq4(sql3`LOWER(code)`, partnerCode.toLowerCase()),
+    const [partner] = await db.query.partners.findMany({
+      where: eq3(sql3`LOWER(code)`, partnerCode.toLowerCase()),
       limit: 1
     });
     if (!partner) {
@@ -2462,15 +2490,15 @@ paymentsRouter.get("/partner/:partnerCode", async (req, res) => {
         message: "No se encontr\xF3 el punto Vecino con el c\xF3digo proporcionado."
       });
     }
-    const transactions = await db2.query.posTransactions.findMany({
-      where: eq4(posTransactions.partnerId, partner.id),
+    const transactions = await db.query.posTransactions.findMany({
+      where: eq3(posTransactions.partnerId, partner.id),
       limit: limitNum,
       offset,
       orderBy: (posTransactions2, { desc: desc5 }) => [desc5(posTransactions2.createdAt)]
     });
-    const [{ count: count2 }] = await db2.select({
+    const [{ count: count2 }] = await db.select({
       count: sql3`count(*)`
-    }).from(posTransactions).where(eq4(posTransactions.partnerId, partner.id));
+    }).from(posTransactions).where(eq3(posTransactions.partnerId, partner.id));
     res.status(200).json({
       transactions,
       pagination: {
@@ -2511,7 +2539,7 @@ paymentsRouter.get("/stats/overview", async (req, res) => {
         dateFilter = sql3`1=1`;
         break;
     }
-    const [stats] = await db2.select({
+    const [stats] = await db.select({
       totalTransactions: sql3`count(*)`,
       totalAmount: sql3`sum(amount)`,
       totalPartnerCommissions: sql3`sum(partner_commission)`,
@@ -2520,12 +2548,12 @@ paymentsRouter.get("/stats/overview", async (req, res) => {
       avgTransaction: sql3`avg(amount)`,
       maxTransaction: sql3`max(amount)`
     }).from(posTransactions).where(dateFilter);
-    const paymentMethodStats = await db2.select({
+    const paymentMethodStats = await db.select({
       paymentMethod: posTransactions.paymentMethod,
       count: sql3`count(*)`,
       totalAmount: sql3`sum(amount)`
     }).from(posTransactions).where(dateFilter).groupBy(posTransactions.paymentMethod);
-    const topPartners = await db2.select({
+    const topPartners = await db.select({
       partnerId: posTransactions.partnerId,
       partnerCode: sql3`(SELECT code FROM partners WHERE id = pos_transactions.partner_id)`,
       partnerName: sql3`(SELECT name FROM partners WHERE id = pos_transactions.partner_id)`,
@@ -2559,6 +2587,7 @@ paymentsRouter.get("/stats/overview", async (req, res) => {
 var payments_api_default = paymentsRouter;
 
 // server/vecinos/vecinos-routes.ts
+import { eq as eq4 } from "drizzle-orm";
 var scryptAsync = promisify(scrypt);
 async function comparePasswords(supplied, stored) {
   const [hashed, salt] = stored.split(".");
@@ -2572,8 +2601,8 @@ var authenticateJWT = async (req, res, next) => {
   if (authHeader) {
     const token = authHeader.split(" ")[1];
     try {
-      const user = jwt.verify(token, process.env.JWT_SECRET || "vecinos-secret");
-      req.user = user;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || "vecinos-secret");
+      req.user = decoded;
       next();
     } catch (error) {
       return res.sendStatus(403);
@@ -2645,7 +2674,7 @@ router.get("/profile", authenticateJWT, async (req, res) => {
       platform: users.platform,
       createdAt: users.createdAt
     }).from(users).where(
-      eq(users.id, req.user.id)
+      eq4(users.id, req.user.id)
     ).limit(1);
     if (!user) {
       return res.status(404).json({ message: "Usuario no encontrado" });
@@ -2676,7 +2705,7 @@ router.post("/register", async (req, res) => {
     const [existingUser] = await db.select({
       id: users.id
     }).from(users).where(
-      eq(users.username, username)
+      eq4(users.username, username)
     ).limit(1);
     if (existingUser) {
       return res.status(400).json({ message: "El nombre de usuario ya est\xE1 en uso" });
@@ -3169,7 +3198,7 @@ function isAuthenticated(req, res, next) {
 }
 contractRouter.get("/templates", async (req, res) => {
   try {
-    const templates = await db2.select().from(documentTemplates).where(eq5(documentTemplates.active, true));
+    const templates = await db.select().from(documentTemplates).where(eq5(documentTemplates.active, true));
     res.json(templates);
   } catch (error) {
     console.error("Error al obtener plantillas de contrato:", error);
@@ -3179,7 +3208,7 @@ contractRouter.get("/templates", async (req, res) => {
 contractRouter.get("/templates/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const template = await db2.select().from(documentTemplates).where(eq5(documentTemplates.id, parseInt(id))).limit(1);
+    const template = await db.select().from(documentTemplates).where(eq5(documentTemplates.id, parseInt(id))).limit(1);
     if (template.length === 0) {
       return res.status(404).json({ error: "Plantilla no encontrada" });
     }
@@ -3195,7 +3224,7 @@ contractRouter.post("/generate", isAuthenticated, async (req, res) => {
     if (!templateId || !formData) {
       return res.status(400).json({ error: "Se requiere templateId y formData" });
     }
-    const template = await db2.select().from(documentTemplates).where(eq5(documentTemplates.id, templateId)).limit(1);
+    const template = await db.select().from(documentTemplates).where(eq5(documentTemplates.id, templateId)).limit(1);
     if (template.length === 0) {
       return res.status(404).json({ error: "Plantilla no encontrada" });
     }
@@ -3206,7 +3235,7 @@ contractRouter.post("/generate", isAuthenticated, async (req, res) => {
     const contractFileName = `contract-${Date.now()}.html`;
     const contractFilePath = path3.join(process.cwd(), "docs", contractFileName);
     fs2.writeFileSync(contractFilePath, contractHtml);
-    const [document] = await db2.insert(documents2).values({
+    const [document] = await db.insert(documents2).values({
       userId: req.user.id,
       templateId,
       title: title || `Contrato generado - ${(/* @__PURE__ */ new Date()).toLocaleDateString("es-CL")}`,
@@ -3232,11 +3261,11 @@ contractRouter.post("/:id/upload-signed", isAuthenticated, upload2.single("signe
     if (!req.file) {
       return res.status(400).json({ error: "No se ha proporcionado ning\xFAn archivo" });
     }
-    const doc = await db2.select().from(documents2).where(eq5(documents2.id, parseInt(id))).limit(1);
+    const doc = await db.select().from(documents2).where(eq5(documents2.id, parseInt(id))).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({ error: "Documento no encontrado" });
     }
-    await db2.update(documents2).set({
+    await db.update(documents2).set({
       filePath: req.file.path,
       status: "signed",
       signatureTimestamp: /* @__PURE__ */ new Date(),
@@ -3933,9 +3962,9 @@ function isAuthenticated3(req, res, next) {
 }
 documentManagementRouter.get("/categories", async (req, res) => {
   try {
-    const categories = await db2.select().from(documentCategories).orderBy(documentCategories.name);
+    const categories = await db.select().from(documentCategories).orderBy(documentCategories.name);
     try {
-      const existingCats = await db2.select().from(documentCategories).orderBy(documentCategories.name);
+      const existingCats = await db.select().from(documentCategories).orderBy(documentCategories.name);
       const combinedCategories = [...categories];
       for (const existingCat of existingCats) {
         if (!categories.some((cat) => cat.name === existingCat.name)) {
@@ -3955,7 +3984,7 @@ documentManagementRouter.get("/categories", async (req, res) => {
 documentManagementRouter.get("/documents/category/:categoryId", async (req, res) => {
   try {
     const { categoryId } = req.params;
-    const docs = await db2.select().from(documents).where(eq6(documents.categoryId, parseInt(categoryId))).orderBy(desc2(documents.createdAt));
+    const docs = await db.select().from(documents).where(eq6(documents.categoryId, parseInt(categoryId))).orderBy(desc2(documents.createdAt));
     res.json(docs);
   } catch (error) {
     console.error("Error al obtener documentos por categor\xEDa:", error);
@@ -3969,7 +3998,7 @@ documentManagementRouter.get("/documents/search", async (req, res) => {
       return res.status(400).json({ error: "T\xE9rmino de b\xFAsqueda requerido" });
     }
     const searchTerm = `%${q}%`;
-    const results = await db2.select().from(documents).where(
+    const results = await db.select().from(documents).where(
       or(
         like(documents.title, searchTerm),
         like(documents.description, searchTerm),
@@ -3985,11 +4014,11 @@ documentManagementRouter.get("/documents/search", async (req, res) => {
 documentManagementRouter.get("/documents/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const doc = await db2.select().from(documents).where(eq6(documents.id, parseInt(id))).limit(1);
+    const doc = await db.select().from(documents).where(eq6(documents.id, parseInt(id))).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({ error: "Documento no encontrado" });
     }
-    const versions = await db2.select().from(documentVersions).where(eq6(documentVersions.documentId, parseInt(id))).orderBy(desc2(documentVersions.version));
+    const versions = await db.select().from(documentVersions).where(eq6(documentVersions.documentId, parseInt(id))).orderBy(desc2(documentVersions.version));
     res.json({
       document: doc[0],
       versions
@@ -4009,7 +4038,7 @@ documentManagementRouter.post("/documents", isAuthenticated3, upload3.single("fi
       return res.status(400).json({ error: "T\xEDtulo y categor\xEDa son obligatorios" });
     }
     const verificationCode = generateVerificationCode();
-    const [newDoc] = await db2.insert(documents).values({
+    const [newDoc] = await db.insert(documents).values({
       title,
       description: description || "",
       filePath: req.file.path,
@@ -4025,7 +4054,7 @@ documentManagementRouter.post("/documents", isAuthenticated3, upload3.single("fi
         ip: req.ip
       })
     }).returning();
-    await db2.insert(documentVersions).values({
+    await db.insert(documentVersions).values({
       documentId: newDoc.id,
       version: 1,
       filePath: req.file.path,
@@ -4038,7 +4067,7 @@ documentManagementRouter.post("/documents", isAuthenticated3, upload3.single("fi
     if (tags && typeof tags === "string") {
       const tagList = tags.split(",").map((tag) => tag.trim());
       for (const tagName of tagList) {
-        await db2.insert(documentTags).values({
+        await db.insert(documentTags).values({
           documentId: newDoc.id,
           name: tagName
         });
@@ -4060,13 +4089,13 @@ documentManagementRouter.post("/documents/:id/versions", isAuthenticated3, uploa
     if (!req.file) {
       return res.status(400).json({ error: "No se ha proporcionado ning\xFAn archivo" });
     }
-    const doc = await db2.select().from(documents).where(eq6(documents.id, parseInt(id))).limit(1);
+    const doc = await db.select().from(documents).where(eq6(documents.id, parseInt(id))).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({ error: "Documento no encontrado" });
     }
-    const latestVersion = await db2.select().from(documentVersions).where(eq6(documentVersions.documentId, parseInt(id))).orderBy(desc2(documentVersions.version)).limit(1);
+    const latestVersion = await db.select().from(documentVersions).where(eq6(documentVersions.documentId, parseInt(id))).orderBy(desc2(documentVersions.version)).limit(1);
     const newVersionNumber = latestVersion.length > 0 ? latestVersion[0].version + 1 : 1;
-    const [newVersion] = await db2.insert(documentVersions).values({
+    const [newVersion] = await db.insert(documentVersions).values({
       documentId: parseInt(id),
       version: newVersionNumber,
       filePath: req.file.path,
@@ -4076,7 +4105,7 @@ documentManagementRouter.post("/documents/:id/versions", isAuthenticated3, uploa
       createdBy: req.user?.id,
       changes: changes || `Versi\xF3n ${newVersionNumber}`
     }).returning();
-    await db2.update(documents).set({
+    await db.update(documents).set({
       filePath: req.file.path,
       fileName: req.file.originalname,
       fileSize: req.file.size,
@@ -4099,7 +4128,7 @@ documentManagementRouter.get("/documents/:id/download", async (req, res) => {
     const { version } = req.query;
     let filePath, fileName;
     if (version && typeof version === "string") {
-      const versionData = await db2.select().from(documentVersions).where(
+      const versionData = await db.select().from(documentVersions).where(
         and4(
           eq6(documentVersions.documentId, parseInt(id)),
           eq6(documentVersions.version, parseInt(version))
@@ -4111,7 +4140,7 @@ documentManagementRouter.get("/documents/:id/download", async (req, res) => {
       filePath = versionData[0].filePath;
       fileName = versionData[0].fileName;
     } else {
-      const doc = await db2.select().from(documents).where(eq6(documents.id, parseInt(id))).limit(1);
+      const doc = await db.select().from(documents).where(eq6(documents.id, parseInt(id))).limit(1);
       if (doc.length === 0) {
         return res.status(404).json({ error: "Documento no encontrado" });
       }
@@ -4130,7 +4159,7 @@ documentManagementRouter.get("/documents/:id/download", async (req, res) => {
 documentManagementRouter.get("/verify/:code", async (req, res) => {
   try {
     const { code } = req.params;
-    const doc = await db2.select().from(documents).where(eq6(documents.verificationCode, code)).limit(1);
+    const doc = await db.select().from(documents).where(eq6(documents.verificationCode, code)).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({
         verified: false,
@@ -4223,7 +4252,7 @@ function isCertifier(req, res, next) {
 }
 notaryDocumentRouter.get("/templates", async (req, res) => {
   try {
-    const templates = await db2.select().from(notaryTemplates).orderBy(notaryTemplates.name);
+    const templates = await db.select().from(notaryTemplates).orderBy(notaryTemplates.name);
     res.json(templates);
   } catch (error) {
     console.error("Error al obtener plantillas notariales:", error);
@@ -4232,15 +4261,15 @@ notaryDocumentRouter.get("/templates", async (req, res) => {
 });
 notaryDocumentRouter.get("/pending", isCertifier, async (req, res) => {
   try {
-    const pendingDocs = await db2.select({
+    const pendingDocs = await db.select({
       document: notaryDocuments,
       user: {
-        id: users2.id,
-        username: users2.username,
-        fullName: users2.fullName,
-        email: users2.email
+        id: users.id,
+        username: users.username,
+        fullName: users.fullName,
+        email: users.email
       }
-    }).from(notaryDocuments).leftJoin(users2, eq7(notaryDocuments.userId, users2.id)).where(eq7(notaryDocuments.status, "pending")).orderBy(desc3(notaryDocuments.createdAt));
+    }).from(notaryDocuments).leftJoin(users, eq7(notaryDocuments.userId, users.id)).where(eq7(notaryDocuments.status, "pending")).orderBy(desc3(notaryDocuments.createdAt));
     res.json(pendingDocs);
   } catch (error) {
     console.error("Error al obtener documentos pendientes:", error);
@@ -4249,7 +4278,7 @@ notaryDocumentRouter.get("/pending", isCertifier, async (req, res) => {
 });
 notaryDocumentRouter.get("/my-documents", isAuthenticated4, async (req, res) => {
   try {
-    const userDocs = await db2.select().from(notaryDocuments).where(eq7(notaryDocuments.userId, req.user.id)).orderBy(desc3(notaryDocuments.createdAt));
+    const userDocs = await db.select().from(notaryDocuments).where(eq7(notaryDocuments.userId, req.user.id)).orderBy(desc3(notaryDocuments.createdAt));
     res.json(userDocs);
   } catch (error) {
     console.error("Error al obtener documentos del usuario:", error);
@@ -4266,7 +4295,7 @@ notaryDocumentRouter.post("/upload", isAuthenticated4, upload4.single("file"), a
       return res.status(400).json({ error: "T\xEDtulo y tipo de documento son obligatorios" });
     }
     const verificationCode = generateVerificationCode2();
-    const [newDoc] = await db2.insert(notaryDocuments).values({
+    const [newDoc] = await db.insert(notaryDocuments).values({
       title,
       description: description || "",
       filePath: req.file.path,
@@ -4284,7 +4313,7 @@ notaryDocumentRouter.post("/upload", isAuthenticated4, upload4.single("file"), a
         platform: req.body.platform || "web"
       })
     }).returning();
-    const [generalDoc] = await db2.insert(documents2).values({
+    const [generalDoc] = await db.insert(documents2).values({
       title,
       description: description || "",
       filePath: req.file.path,
@@ -4301,7 +4330,7 @@ notaryDocumentRouter.post("/upload", isAuthenticated4, upload4.single("file"), a
         documentType
       })
     }).returning();
-    await db2.update(notaryDocuments).set({ documentId: generalDoc.id }).where(eq7(notaryDocuments.id, newDoc.id));
+    await db.update(notaryDocuments).set({ documentId: generalDoc.id }).where(eq7(notaryDocuments.id, newDoc.id));
     res.status(201).json({
       message: "Documento enviado para certificaci\xF3n exitosamente",
       document: {
@@ -4318,7 +4347,7 @@ notaryDocumentRouter.post("/:id/certify", isCertifier, upload4.single("signedFil
   try {
     const { id } = req.params;
     const { certificationNote, certificationMethod } = req.body;
-    const doc = await db2.select().from(notaryDocuments).where(eq7(notaryDocuments.id, parseInt(id))).limit(1);
+    const doc = await db.select().from(notaryDocuments).where(eq7(notaryDocuments.id, parseInt(id))).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({ error: "Documento no encontrado" });
     }
@@ -4348,7 +4377,7 @@ notaryDocumentRouter.post("/:id/certify", isCertifier, upload4.single("signedFil
         console.error("Error al modificar PDF:", pdfError);
       }
     }
-    const [certification] = await db2.insert(notaryCertifications).values({
+    const [certification] = await db.insert(notaryCertifications).values({
       documentId: doc[0].id,
       certifierId: req.user.id,
       certificationDate: /* @__PURE__ */ new Date(),
@@ -4364,7 +4393,7 @@ notaryDocumentRouter.post("/:id/certify", isCertifier, upload4.single("signedFil
         certificationTimestamp: (/* @__PURE__ */ new Date()).toISOString()
       })
     }).returning();
-    await db2.update(notaryDocuments).set({
+    await db.update(notaryDocuments).set({
       status: "certified",
       certifiedBy: req.user.id,
       certifiedAt: /* @__PURE__ */ new Date(),
@@ -4372,7 +4401,7 @@ notaryDocumentRouter.post("/:id/certify", isCertifier, upload4.single("signedFil
       certifiedFileName
     }).where(eq7(notaryDocuments.id, parseInt(id)));
     if (doc[0].documentId) {
-      await db2.update(documents2).set({
+      await db.update(documents2).set({
         status: "certified",
         filePath: certifiedFilePath,
         fileName: certifiedFileName,
@@ -4392,13 +4421,13 @@ notaryDocumentRouter.post("/:id/certify", isCertifier, upload4.single("signedFil
 notaryDocumentRouter.get("/verify/:code", async (req, res) => {
   try {
     const { code } = req.params;
-    const doc = await db2.select({
+    const doc = await db.select({
       document: notaryDocuments,
       certifier: {
-        fullName: users2.fullName,
-        username: users2.username
+        fullName: users.fullName,
+        username: users.username
       }
-    }).from(notaryDocuments).leftJoin(users2, eq7(notaryDocuments.certifiedBy, users2.id)).where(eq7(notaryDocuments.verificationCode, code)).limit(1);
+    }).from(notaryDocuments).leftJoin(users, eq7(notaryDocuments.certifiedBy, users.id)).where(eq7(notaryDocuments.verificationCode, code)).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({
         verified: false,
@@ -4433,7 +4462,7 @@ notaryDocumentRouter.get("/:id/download", async (req, res) => {
   try {
     const { id } = req.params;
     const { certified } = req.query;
-    const doc = await db2.select().from(notaryDocuments).where(eq7(notaryDocuments.id, parseInt(id))).limit(1);
+    const doc = await db.select().from(notaryDocuments).where(eq7(notaryDocuments.id, parseInt(id))).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({ error: "Documento no encontrado" });
     }
@@ -4457,7 +4486,7 @@ notaryDocumentRouter.get("/:id/download", async (req, res) => {
 notaryDocumentRouter.get("/:id/qr", async (req, res) => {
   try {
     const { id } = req.params;
-    const doc = await db2.select().from(notaryDocuments).where(eq7(notaryDocuments.id, parseInt(id))).limit(1);
+    const doc = await db.select().from(notaryDocuments).where(eq7(notaryDocuments.id, parseInt(id))).limit(1);
     if (doc.length === 0) {
       return res.status(404).json({ error: "Documento no encontrado" });
     }
@@ -4676,7 +4705,7 @@ function isAdmin(req, res, next) {
 }
 posManagementRouter.get("/devices", isAuthenticated5, async (req, res) => {
   try {
-    const devices = await db2.query.posDevices.findMany({
+    const devices = await db.query.posDevices.findMany({
       orderBy: [desc4(posDevices.createdAt)]
     });
     res.json(devices);
@@ -4688,7 +4717,7 @@ posManagementRouter.get("/devices", isAuthenticated5, async (req, res) => {
 posManagementRouter.get("/devices/:id", isAuthenticated5, async (req, res) => {
   try {
     const { id } = req.params;
-    const [device] = await db2.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
+    const [device] = await db.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
     if (!device) {
       return res.status(404).json({ error: "Dispositivo no encontrado" });
     }
@@ -4701,13 +4730,13 @@ posManagementRouter.get("/devices/:id", isAuthenticated5, async (req, res) => {
 posManagementRouter.post("/devices", isAuthenticated5, async (req, res) => {
   try {
     const validatedData = insertPosDeviceSchema.parse(req.body);
-    const existingDevice = await db2.select().from(posDevices).where(eq8(posDevices.deviceCode, validatedData.deviceCode));
+    const existingDevice = await db.select().from(posDevices).where(eq8(posDevices.deviceCode, validatedData.deviceCode));
     if (existingDevice.length > 0) {
       return res.status(400).json({
         error: "Ya existe un dispositivo con ese c\xF3digo"
       });
     }
-    const [newDevice] = await db2.insert(posDevices).values(validatedData).returning();
+    const [newDevice] = await db.insert(posDevices).values(validatedData).returning();
     res.status(201).json(newDevice);
   } catch (error) {
     console.error("Error al crear dispositivo POS:", error);
@@ -4724,19 +4753,19 @@ posManagementRouter.put("/devices/:id", isAuthenticated5, async (req, res) => {
   try {
     const { id } = req.params;
     const validatedData = insertPosDeviceSchema.partial().parse(req.body);
-    const [existingDevice] = await db2.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
+    const [existingDevice] = await db.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
     if (!existingDevice) {
       return res.status(404).json({ error: "Dispositivo no encontrado" });
     }
     if (validatedData.deviceCode && validatedData.deviceCode !== existingDevice.deviceCode) {
-      const [duplicateCode] = await db2.select().from(posDevices).where(eq8(posDevices.deviceCode, validatedData.deviceCode));
+      const [duplicateCode] = await db.select().from(posDevices).where(eq8(posDevices.deviceCode, validatedData.deviceCode));
       if (duplicateCode) {
         return res.status(400).json({
           error: "Ya existe un dispositivo con ese c\xF3digo"
         });
       }
     }
-    const [updatedDevice] = await db2.update(posDevices).set({
+    const [updatedDevice] = await db.update(posDevices).set({
       ...validatedData,
       updatedAt: /* @__PURE__ */ new Date()
     }).where(eq8(posDevices.id, parseInt(id))).returning();
@@ -4755,11 +4784,11 @@ posManagementRouter.put("/devices/:id", isAuthenticated5, async (req, res) => {
 posManagementRouter.delete("/devices/:id", isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const [existingDevice] = await db2.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
+    const [existingDevice] = await db.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
     if (!existingDevice) {
       return res.status(404).json({ error: "Dispositivo no encontrado" });
     }
-    const [activeSession] = await db2.select().from(posSessions).where(
+    const [activeSession] = await db.select().from(posSessions).where(
       and6(
         eq8(posSessions.deviceId, parseInt(id)),
         eq8(posSessions.isOpen, true)
@@ -4770,7 +4799,7 @@ posManagementRouter.delete("/devices/:id", isAdmin, async (req, res) => {
         error: "No se puede eliminar un dispositivo con sesiones activas"
       });
     }
-    await db2.delete(posDevices).where(eq8(posDevices.id, parseInt(id)));
+    await db.delete(posDevices).where(eq8(posDevices.id, parseInt(id)));
     res.status(204).send();
   } catch (error) {
     console.error("Error al eliminar dispositivo POS:", error);
@@ -4780,7 +4809,7 @@ posManagementRouter.delete("/devices/:id", isAdmin, async (req, res) => {
 posManagementRouter.get("/devices/:id/active-session", isAuthenticated5, async (req, res) => {
   try {
     const { id } = req.params;
-    const [activeSession] = await db2.select().from(posSessions).where(
+    const [activeSession] = await db.select().from(posSessions).where(
       and6(
         eq8(posSessions.deviceId, parseInt(id)),
         eq8(posSessions.isOpen, true)
@@ -4798,7 +4827,7 @@ posManagementRouter.get("/devices/:id/active-session", isAuthenticated5, async (
 posManagementRouter.get("/devices/:id/sales", isAuthenticated5, async (req, res) => {
   try {
     const { id } = req.params;
-    const [activeSession] = await db2.select().from(posSessions).where(
+    const [activeSession] = await db.select().from(posSessions).where(
       and6(
         eq8(posSessions.deviceId, parseInt(id)),
         eq8(posSessions.isOpen, true)
@@ -4807,7 +4836,7 @@ posManagementRouter.get("/devices/:id/sales", isAuthenticated5, async (req, res)
     if (!activeSession) {
       return res.json([]);
     }
-    const sales = await db2.select().from(posSales).where(eq8(posSales.sessionId, activeSession.id)).orderBy(desc4(posSales.createdAt));
+    const sales = await db.select().from(posSales).where(eq8(posSales.sessionId, activeSession.id)).orderBy(desc4(posSales.createdAt));
     res.json(sales);
   } catch (error) {
     console.error("Error al obtener ventas:", error);
@@ -4818,7 +4847,7 @@ posManagementRouter.post("/devices/:id/sessions", isAuthenticated5, async (req, 
   try {
     const { id } = req.params;
     const validatedData = insertPosSessionSchema.parse(req.body);
-    const [device] = await db2.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
+    const [device] = await db.select().from(posDevices).where(eq8(posDevices.id, parseInt(id)));
     if (!device) {
       return res.status(404).json({ error: "Dispositivo no encontrado" });
     }
@@ -4827,7 +4856,7 @@ posManagementRouter.post("/devices/:id/sessions", isAuthenticated5, async (req, 
         error: "No se puede abrir una sesi\xF3n en un dispositivo inactivo"
       });
     }
-    const [activeSession] = await db2.select().from(posSessions).where(
+    const [activeSession] = await db.select().from(posSessions).where(
       and6(
         eq8(posSessions.deviceId, parseInt(id)),
         eq8(posSessions.isOpen, true)
@@ -4839,7 +4868,7 @@ posManagementRouter.post("/devices/:id/sessions", isAuthenticated5, async (req, 
       });
     }
     const sessionCode = generateSessionCode();
-    const [newSession] = await db2.insert(posSessions).values({
+    const [newSession] = await db.insert(posSessions).values({
       ...validatedData,
       deviceId: parseInt(id),
       sessionCode,
@@ -4862,14 +4891,14 @@ posManagementRouter.post("/sessions/:id/close", isAuthenticated5, async (req, re
   try {
     const { id } = req.params;
     const validatedData = closePosSessionSchema.parse(req.body);
-    const [session3] = await db2.select().from(posSessions).where(eq8(posSessions.id, parseInt(id)));
+    const [session3] = await db.select().from(posSessions).where(eq8(posSessions.id, parseInt(id)));
     if (!session3) {
       return res.status(404).json({ error: "Sesi\xF3n no encontrada" });
     }
     if (!session3.isOpen) {
       return res.status(400).json({ error: "La sesi\xF3n ya est\xE1 cerrada" });
     }
-    const [updatedSession] = await db2.update(posSessions).set({
+    const [updatedSession] = await db.update(posSessions).set({
       isOpen: false,
       status: "closed",
       closedAt: /* @__PURE__ */ new Date(),
@@ -4892,14 +4921,14 @@ posManagementRouter.post("/sessions/:id/sales", isAuthenticated5, async (req, re
   try {
     const { id } = req.params;
     const validatedData = insertPosSaleSchema.parse(req.body);
-    const [session3] = await db2.select().from(posSessions).where(eq8(posSessions.id, parseInt(id)));
+    const [session3] = await db.select().from(posSessions).where(eq8(posSessions.id, parseInt(id)));
     if (!session3) {
       return res.status(404).json({ error: "Sesi\xF3n no encontrada" });
     }
     if (!session3.isOpen) {
       return res.status(400).json({ error: "No se puede registrar una venta en una sesi\xF3n cerrada" });
     }
-    const [sale] = await db2.insert(posSales).values({
+    const [sale] = await db.insert(posSales).values({
       ...validatedData,
       sessionId: parseInt(id),
       deviceId: session3.deviceId
@@ -4919,7 +4948,7 @@ posManagementRouter.post("/sessions/:id/sales", isAuthenticated5, async (req, re
 posManagementRouter.get("/devices/:id/sessions", isAuthenticated5, async (req, res) => {
   try {
     const { id } = req.params;
-    const sessions = await db2.select().from(posSessions).where(eq8(posSessions.deviceId, parseInt(id))).orderBy(desc4(posSessions.openedAt));
+    const sessions = await db.select().from(posSessions).where(eq8(posSessions.deviceId, parseInt(id))).orderBy(desc4(posSessions.openedAt));
     res.json(sessions);
   } catch (error) {
     console.error("Error al obtener historial de sesiones:", error);
@@ -5195,8 +5224,8 @@ function registerDashboardRoutes(app2) {
       return res.sendStatus(401);
     }
     try {
-      const users3 = await storage.getUsersByRole("user");
-      const allUsers = users3.concat(await storage.getUsersByRole("certifier"));
+      const users2 = await storage.getUsersByRole("user");
+      const allUsers = users2.concat(await storage.getUsersByRole("certifier"));
       const enrichedUsers = allUsers.map((user) => ({
         ...user,
         status: Math.random() > 0.1 ? "active" : "inactive",
@@ -5442,14 +5471,14 @@ async function initializeTestAdmins() {
       });
       console.log("Demo partner inicializado correctamente");
     }
-    const partners4 = [
+    const partners3 = [
       { username: "partner1", password: "partner123", businessName: "Almac\xE9n Don Pedro" },
       { username: "partner2", password: "partner456", businessName: "Farmacia San Jos\xE9" },
       { username: "partner3", password: "partner789", businessName: "Librer\xEDa Central" },
       { username: "partner4", password: "partner789", businessName: "Caf\xE9 Internet Express" }
     ];
-    for (let i = 0; i < partners4.length; i++) {
-      const partner = partners4[i];
+    for (let i = 0; i < partners3.length; i++) {
+      const partner = partners3[i];
       const existingPartner = storage.users.find((u) => u.username === partner.username);
       if (!existingPartner) {
         const hashedPassword = await hashPassword(partner.password);
@@ -5489,127 +5518,38 @@ async function initializeTestAdmins() {
 
 // server/vite.ts
 import express4 from "express";
-import fs5 from "fs";
-import path8 from "path";
-import { createServer as createViteServer, createLogger } from "vite";
-
-// vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import path7 from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-var vite_config_default = defineConfig({
-  plugins: [
-    react(),
-    runtimeErrorOverlay(),
-    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
-      await import("@replit/vite-plugin-cartographer").then(
-        (m) => m.cartographer()
-      )
-    ] : []
-  ],
-  resolve: {
-    alias: {
-      "@": path7.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path7.resolve(import.meta.dirname, "shared"),
-      "@assets": path7.resolve(import.meta.dirname, "attached_assets")
-    }
-  },
-  root: path7.resolve(import.meta.dirname, "client"),
-  build: {
-    outDir: path7.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-    rollupOptions: {
-      external: ["puppeteer", "ws", "bufferutil"]
-    }
-  },
-  optimizeDeps: {
-    exclude: ["@puppeteer/browsers", "puppeteer", "ws", "bufferutil"]
-  },
-  server: {
-    fs: {
-      strict: false
-    }
-  }
-});
-
-// server/vite.ts
-import { nanoid } from "nanoid";
-var viteLogger = createLogger();
-function log(message, source = "express") {
-  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  });
-  console.log(`${formattedTime} [${source}] ${message}`);
+function log(message) {
+  console.log(`[${(/* @__PURE__ */ new Date()).toISOString()}] ${message}`);
 }
 async function setupVite(app2, server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true
-  };
-  const vite = await createViteServer({
-    ...vite_config_default,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      }
-    },
-    server: serverOptions,
-    appType: "custom"
-  });
-  app2.use(vite.middlewares);
-  app2.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-    try {
-      const clientTemplate = path8.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html"
-      );
-      let template = await fs5.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e);
-      next(e);
-    }
-  });
+  log("Setting up development server...");
+  serveStatic(app2);
 }
 function serveStatic(app2) {
-  const distPath = path8.resolve(import.meta.dirname, "..", "dist/public");
-  if (!fs5.existsSync(distPath)) {
-    log(`Build directory not found: ${distPath}, checking for public folder`, "static");
-    const publicPath = path8.resolve(import.meta.dirname, "..", "public");
-    if (fs5.existsSync(publicPath)) {
-      log(`Serving static files from ${publicPath}`, "static");
-      app2.use(express4.static(publicPath));
-      app2.use("*", (_req, res) => {
-        res.sendFile(path8.resolve(publicPath, "index.html"));
-      });
-      return;
-    }
-    log(`No static files found to serve`, "static");
-    app2.use("*", (_req, res) => {
-      res.status(500).send("Application not properly built. Please contact support.");
-    });
-    return;
+  try {
+    const publicDir = path7.resolve(process.cwd(), "dist/public");
+    app2.use(express4.static(publicDir));
+    log("Serving static files from dist/public");
+  } catch (error) {
+    log("No static files directory found, serving API only");
   }
-  log(`Serving static files from ${distPath}`, "static");
-  app2.use(express4.static(distPath));
-  app2.use("*", (_req, res) => {
-    res.sendFile(path8.resolve(distPath, "index.html"));
+  app2.get("*", (req, res) => {
+    if (req.path.startsWith("/api")) {
+      return res.status(404).json({ error: "API route not found" });
+    }
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>NotaryPro API Server</title>
+        </head>
+        <body>
+          <h1>NotaryPro API Server</h1>
+          <p>The API server is running. Access the API endpoints at /api/*</p>
+        </body>
+      </html>
+    `);
   });
 }
 
@@ -5619,7 +5559,7 @@ app.use(express5.json());
 app.use(express5.urlencoded({ extended: false }));
 app.use((req, res, next) => {
   const start = Date.now();
-  const path9 = req.path;
+  const path8 = req.path;
   let capturedJsonResponse = void 0;
   const originalResJson = res.json;
   res.json = function(bodyJson, ...args) {
@@ -5628,8 +5568,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path9.startsWith("/api")) {
-      let logLine = `${req.method} ${path9} ${res.statusCode} in ${duration}ms`;
+    if (path8.startsWith("/api")) {
+      let logLine = `${req.method} ${path8} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }

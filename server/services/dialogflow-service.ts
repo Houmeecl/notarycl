@@ -4,7 +4,7 @@
  */
 
 import axios from 'axios';
-import { DialogflowSession, InsertWhatsappMessage, WhatsappMessage } from '@shared/schema';
+import { DialogflowSession, InsertWhatsappMessage, WhatsappMessage, dialogflowSessions } from '@shared/schema';
 import { whatsappService } from './whatsapp-service';
 import { db } from '../db';
 import { whatsappMessages } from '@shared/schema';

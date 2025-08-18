@@ -1,4 +1,5 @@
 // MercadoPago temporalmente deshabilitado hasta configurar las claves correctamente
+import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
 // Verificar que las variables de entorno estén configuradas
 if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
@@ -8,6 +9,14 @@ if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
 if (!process.env.MERCADOPAGO_PUBLIC_KEY) {
   console.warn('Advertencia: MERCADOPAGO_PUBLIC_KEY no está configurado - usando modo demo');
 }
+
+// Initialize MercadoPago client
+const client = new MercadoPagoConfig({
+  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || 'demo-token',
+});
+
+const preference = new Preference(client);
+const payment = new Payment(client);
 
 /**
  * Crear una preferencia de pago para MercadoPago (modo demo)

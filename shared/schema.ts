@@ -29,6 +29,7 @@ export const users = pgTable("users", {
   address: text("address"),
   region: text("region"),
   comuna: text("comuna"), // Community/District
+  phone: text("phone"), // Phone number
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -43,6 +44,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   address: true,
   region: true,
   comuna: true,
+  phone: true,
 });
 
 // Document Categories
@@ -326,6 +328,8 @@ export const partners = pgTable("partners", {
   hasDevice: boolean("has_device").notNull(),
   status: text("status").notNull().default("pending"), // pending, approved, rejected
   notes: text("notes"),
+  commissionRate: real("commission_rate").default(0.15), // Default 15%
+  sellerId: text("seller_id"), // External seller ID
   // POS integration fields
   posIntegrated: boolean("pos_integrated").default(false),
   posProvider: text("pos_provider"),
@@ -392,6 +396,7 @@ export const posTransactions = pgTable("pos_transactions", {
   items: jsonb("items"), // Items sold in this transaction
   commissionAmount: integer("commission_amount"), // Commission in cents
   commissionRate: real("commission_rate"),
+  paymentMethod: text("payment_method"), // Payment method used
   synchronized: boolean("synchronized").default(true).notNull(),
   metadata: jsonb("metadata"), // Additional POS data
   createdAt: timestamp("created_at", { mode: 'date' }).defaultNow().notNull(),
@@ -406,6 +411,7 @@ export const insertPosTransactionSchema = createInsertSchema(posTransactions).pi
   items: true,
   commissionAmount: true,
   commissionRate: true,
+  paymentMethod: true,
   synchronized: true,
   metadata: true,
 });
@@ -503,6 +509,7 @@ export const crmLeads = pgTable("crm_leads", {
   phone: text("phone").notNull(),
   rut: text("rut"),
   documentType: text("document_type"),
+  documentId: integer("document_id"), // Associated document ID
   status: text("status").notNull().default("initiated"), // initiated, data_completed, payment_completed, certified, incomplete
   source: text("source").notNull().default("webapp"), // webapp, android, website, whatsapp
   pipelineStage: text("pipeline_stage").notNull().default("initiated"), // initiated, data_completed, payment_completed, certified, incomplete
@@ -521,6 +528,7 @@ export const insertCrmLeadSchema = createInsertSchema(crmLeads).pick({
   phone: true,
   rut: true,
   documentType: true,
+  documentId: true,
   status: true,
   source: true,
   pipelineStage: true,
@@ -544,6 +552,7 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   externalMessageId: text("external_message_id"), // ID from WhatsApp API
   metadata: jsonb("metadata"), // Additional data
   sentAt: timestamp("sent_at").defaultNow(),
+  receivedAt: timestamp("received_at"), // When message was received
   deliveredAt: timestamp("delivered_at"),
   readAt: timestamp("read_at"),
 });
@@ -559,6 +568,7 @@ export const insertWhatsappMessageSchema = createInsertSchema(whatsappMessages).
   status: true,
   externalMessageId: true,
   metadata: true,
+  receivedAt: true,
 });
 
 // Dialogflow Sessions
@@ -777,6 +787,9 @@ export const verificationBadges = pgTable("verification_badges", {
   requiredPoints: integer("required_points").notNull(),
   tier: text("tier").notNull(), // bronce, plata, oro, platino, diamante
   isRare: boolean("is_rare").notNull().default(false),
+  type: text("type"), // social, achievement, etc.
+  level: integer("level"), // Level for the badge
+  badgeImage: text("badge_image"), // Alternative image field
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -787,6 +800,9 @@ export const insertVerificationBadgeSchema = createInsertSchema(verificationBadg
   requiredPoints: true,
   tier: true,
   isRare: true,
+  type: true,
+  level: true,
+  badgeImage: true,
 });
 
 // Insignias conseguidas por usuario
@@ -796,12 +812,14 @@ export const userBadges = pgTable("user_badges", {
   badgeId: integer("badge_id").notNull(),
   earnedAt: timestamp("earned_at").defaultNow(),
   showcaseOrder: integer("showcase_order"), // posición para mostrar en perfil (NULL si no se muestra)
+  metadata: jsonb("metadata"), // Additional metadata for the badge
 });
 
 export const insertUserBadgeSchema = createInsertSchema(userBadges).pick({
   userId: true,
   badgeId: true,
   showcaseOrder: true,
+  metadata: true,
 });
 
 // Perfil de gamificación de usuario

@@ -1,13 +1,13 @@
 import express, { Request, Response } from 'express';
 import { requireAdmin, requireSuperAdmin } from './admin-middleware';
 import { db } from '../db';
-import { eq, desc, and, gte, lte, like } from 'drizzle-orm';
+import { eq, desc, and, gte, lte, like, count, inArray, or } from 'drizzle-orm';
 import { 
   users, messageTemplates, automationRules, crmLeads, 
   whatsappMessages, dialogflowSessions, documents, identityVerifications
 } from '@shared/schema';
 import { createSuperAdmin } from './seed-admin';
-import { format, subDays, subMonths, startOfDay, endOfDay, parseISO } from 'date-fns';
+import { format, subDays, subMonths, startOfDay, endOfDay, parseISO, addDays } from 'date-fns';
 
 const adminRouter = express.Router();
 
@@ -25,18 +25,18 @@ adminRouter.get('/dashboard', async (req: Request, res: Response) => {
       templatesCount,
       rulesCount
     ] = await Promise.all([
-      db.select({ count: db.fn.count() }).from(crmLeads),
-      db.select({ count: db.fn.count() }).from(whatsappMessages),
-      db.select({ count: db.fn.count() }).from(dialogflowSessions),
-      db.select({ count: db.fn.count() }).from(messageTemplates),
-      db.select({ count: db.fn.count() }).from(automationRules)
+      db.select({ count: count() }).from(crmLeads),
+      db.select({ count: count() }).from(whatsappMessages),
+      db.select({ count: count() }).from(dialogflowSessions),
+      db.select({ count: count() }).from(messageTemplates),
+      db.select({ count: count() }).from(automationRules)
     ]);
 
     // Obtener distribución de leads por etapa
     const leadsByStage = await db
       .select({
         stage: crmLeads.pipelineStage,
-        count: db.fn.count()
+        count: count()
       })
       .from(crmLeads)
       .groupBy(crmLeads.pipelineStage);
@@ -343,8 +343,8 @@ adminRouter.get('/master-dashboard', async (req: Request, res: Response) => {
   try {
     // Obtener estadísticas de documentos
     const [totalDocumentsResult, documentsLastMonthResult] = await Promise.all([
-      db.select({ count: db.fn.count() }).from(documents),
-      db.select({ count: db.fn.count() }).from(documents)
+      db.select({ count: count() }).from(documents),
+      db.select({ count: count() }).from(documents)
         .where(gte(documents.createdAt, subMonths(new Date(), 1)))
     ]);
 
@@ -358,8 +358,8 @@ adminRouter.get('/master-dashboard', async (req: Request, res: Response) => {
 
     // Obtener estadísticas de usuarios
     const [totalUsersResult, newUsersLastMonthResult] = await Promise.all([
-      db.select({ count: db.fn.count() }).from(users),
-      db.select({ count: db.fn.count() }).from(users)
+      db.select({ count: count() }).from(users),
+      db.select({ count: count() }).from(users)
         .where(gte(users.createdAt, subMonths(new Date(), 1)))
     ]);
 
@@ -375,7 +375,7 @@ adminRouter.get('/master-dashboard', async (req: Request, res: Response) => {
     const documentsByStatusQuery = await db
       .select({
         status: documents.status,
-        count: db.fn.count()
+        count: count()
       })
       .from(documents)
       .groupBy(documents.status);
