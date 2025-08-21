@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
 import * as schema from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { InsertAnalyticsEvent, AnalyticsEvent } from "@shared/schema";
+import type { InsertAnalyticsEvent, AnalyticsEvent } from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
 
