@@ -12,6 +12,7 @@ import { ronManager } from "./modules/ron-manager";
 import { identityVerificationManager } from "./modules/identity-verification";
 import { securityManager } from "./modules/security-manager";
 import { workflowEngine, createDocumentWithWorkflow } from "./modules/workflow-engine";
+import { demoDataManager } from "./demo-data";
 import crypto from "crypto";
 
 const app = express();
@@ -113,6 +114,16 @@ async function initializeAdmin() {
   console.log(`   Usuario: admin`);
   console.log(`   Contraseña: ${adminPassword}`);
   console.log("⚠️  Guarda estas credenciales");
+
+  // Inicializar datos de demo automáticamente
+  console.log("🎭 Inicializando datos de demo...");
+  try {
+    await demoDataManager.initializeDemoData();
+    demoDataManager.simulateRealTimeActivity();
+    console.log("✅ Datos de demo listos");
+  } catch (error) {
+    console.error("⚠️ Error inicializando demo:", error);
+  }
 }
 
 // ================================
@@ -1049,6 +1060,94 @@ app.get("/api/workflows/stats", authenticateUser, (req: any, res) => {
 });
 
 // ================================
+// RUTAS DE DEMO
+// ================================
+
+app.post("/api/demo/initialize", (req, res) => {
+  try {
+    demoDataManager.initializeDemoData().then(() => {
+      res.json({
+        message: "Datos de demo inicializados exitosamente",
+        stats: demoDataManager.getDemoStats()
+      });
+    }).catch(error => {
+      console.error("Error inicializando demo:", error);
+      res.status(500).json({ message: "Error inicializando demo" });
+    });
+  } catch (error) {
+    console.error("Error en demo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.get("/api/demo/stats", (req, res) => {
+  try {
+    const stats = demoDataManager.getDemoStats();
+    const metrics = demoDataManager.getDemoMetrics();
+    
+    res.json({
+      basic: stats,
+      detailed: metrics,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error obteniendo stats de demo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/demo/scenario/:type", (req, res) => {
+  try {
+    const scenarioType = req.params.type as 'standard' | 'ron' | 'enterprise';
+    
+    demoDataManager.createDemoScenario(scenarioType).then(scenario => {
+      res.json({
+        message: `Escenario ${scenarioType} creado exitosamente`,
+        scenario
+      });
+    }).catch(error => {
+      console.error("Error creando escenario:", error);
+      res.status(500).json({ message: error.message });
+    });
+  } catch (error) {
+    console.error("Error en escenario demo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.get("/api/demo/live-event", (req, res) => {
+  try {
+    const eventTypes = ['document_created', 'payment_completed', 'ron_session_started', 'identity_verified', 'document_signed', 'notarization_completed'];
+    const randomEventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+    
+    const event = demoDataManager.createLiveEvent(randomEventType);
+    res.json(event);
+  } catch (error) {
+    console.error("Error generando evento demo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/demo/simulate-workflow/:documentId", (req, res) => {
+  try {
+    const documentId = req.params.documentId;
+    
+    demoDataManager.simulateCompleteWorkflow(documentId).then(() => {
+      res.json({
+        message: "Simulación de flujo iniciada",
+        documentId
+      });
+    }).catch(error => {
+      console.error("Error simulando flujo:", error);
+      res.status(500).json({ message: error.message });
+    });
+  } catch (error) {
+    console.error("Error en simulación:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+// ================================
 // RUTAS DE SISTEMA
 // ================================
 
@@ -1152,6 +1251,12 @@ app.get("/ron", (req, res) => {
   res.sendFile(ronPath);
 });
 
+// Ruta para demo interactivo
+app.get("/demo", (req, res) => {
+  const demoPath = path.join(process.cwd(), "demo.html");
+  res.sendFile(demoPath);
+});
+
 // Ruta para flujo de trabajo de documentos
 app.get("/workflow/:documentId", (req, res) => {
   const dashboardPath = path.join(process.cwd(), "dashboard.html");
@@ -1246,11 +1351,19 @@ async function startEnhancedServer() {
        console.log("      GET  /api/workflows/stats - Estadísticas de flujo");
       console.log("");
              console.log("🌐 Frontend: http://localhost:5000");
-       console.log("🧪 Pruebas básicas: http://localhost:5000/test");
-       console.log("🔬 Pruebas avanzadas: http://localhost:5000/enhanced");
+       console.log("🎬 Demo Interactivo: http://localhost:5000/demo");
        console.log("📊 Dashboard: http://localhost:5000/dashboard");
        console.log("🎥 Pruebas RON: http://localhost:5000/ron");
-       console.log("✅ ¡Sistema completo con RON listo para desarrollo!");
+       console.log("🔬 Pruebas avanzadas: http://localhost:5000/enhanced");
+       console.log("🧪 Pruebas básicas: http://localhost:5000/test");
+       console.log("");
+       console.log("🎭 DEMO APIs:");
+       console.log("      POST /api/demo/initialize - Inicializar datos demo");
+       console.log("      GET  /api/demo/stats - Estadísticas demo");
+       console.log("      POST /api/demo/scenario/:type - Crear escenario");
+       console.log("      GET  /api/demo/live-event - Evento en tiempo real");
+       console.log("");
+       console.log("✅ ¡Sistema completo con DEMO INTERACTIVO listo!");
     });
     
   } catch (error) {
