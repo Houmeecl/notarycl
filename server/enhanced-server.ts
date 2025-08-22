@@ -11,6 +11,8 @@ import { paymentManager } from "./modules/payment-manager";
 import { ronManager } from "./modules/ron-manager";
 import { identityVerificationManager } from "./modules/identity-verification";
 import { securityManager } from "./modules/security-manager";
+import { workflowEngine, createDocumentWithWorkflow } from "./modules/workflow-engine";
+import crypto from "crypto";
 
 const app = express();
 
@@ -244,17 +246,25 @@ app.get("/api/documents/templates/:id", (req, res) => {
 
 app.post("/api/documents", authenticateUser, (req: any, res) => {
   try {
-    const { templateId, formData } = req.body;
+    const { templateId, formData, workflowOptions = {} } = req.body;
     
     if (!templateId || !formData) {
       return res.status(400).json({ message: "templateId y formData son requeridos" });
     }
 
-    const document = documentManager.createDocument(templateId, req.user.id, formData);
+    // Crear documento con flujo de trabajo integrado
+    const { document, workflowId } = createDocumentWithWorkflow(
+      templateId, 
+      req.user.id, 
+      formData, 
+      workflowOptions
+    );
     
     res.status(201).json({
-      message: "Documento creado exitosamente",
-      document
+      message: "Documento y flujo de trabajo creados exitosamente",
+      document,
+      workflowId,
+      workflow: workflowEngine.getWorkflow(workflowId)
     });
   } catch (error) {
     console.error("Error creando documento:", error);
@@ -918,13 +928,136 @@ app.get("/api/identity/stats", authenticateUser, (req: any, res) => {
 });
 
 // ================================
+// RUTAS DE FLUJO DE TRABAJO
+// ================================
+
+app.get("/api/workflows", authenticateUser, (req: any, res) => {
+  try {
+    const workflows = workflowEngine.getUserWorkflows(req.user.id);
+    res.json(workflows);
+  } catch (error) {
+    console.error("Error obteniendo flujos de trabajo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.get("/api/workflows/:id", authenticateUser, (req: any, res) => {
+  try {
+    const workflow = workflowEngine.getWorkflow(req.params.id);
+    
+    if (!workflow) {
+      return res.status(404).json({ message: "Flujo de trabajo no encontrado" });
+    }
+
+    if (workflow.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "No tienes acceso a este flujo" });
+    }
+
+    res.json(workflow);
+  } catch (error) {
+    console.error("Error obteniendo flujo de trabajo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/workflows/:id/advance", authenticateUser, (req: any, res) => {
+  try {
+    const { stepId, stepData } = req.body;
+    
+    if (!stepId) {
+      return res.status(400).json({ message: "stepId requerido" });
+    }
+
+    const success = workflowEngine.advanceWorkflow(req.params.id, stepId, stepData);
+    
+    if (!success) {
+      return res.status(400).json({ message: "No se pudo avanzar el flujo" });
+    }
+
+    res.json({
+      message: "Flujo avanzado exitosamente",
+      workflow: workflowEngine.getWorkflow(req.params.id)
+    });
+  } catch (error) {
+    console.error("Error avanzando flujo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/workflows/:id/retry", authenticateUser, (req: any, res) => {
+  try {
+    const { stepId } = req.body;
+    
+    if (!stepId) {
+      return res.status(400).json({ message: "stepId requerido" });
+    }
+
+    const success = workflowEngine.retryFailedStep(req.params.id, stepId);
+    
+    if (!success) {
+      return res.status(400).json({ message: "No se pudo reintentar el paso" });
+    }
+
+    res.json({
+      message: "Paso reintentado exitosamente",
+      workflow: workflowEngine.getWorkflow(req.params.id)
+    });
+  } catch (error) {
+    console.error("Error reintentando paso:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/workflows/:id/cancel", authenticateUser, (req: any, res) => {
+  try {
+    const { reason } = req.body;
+    
+    if (!reason) {
+      return res.status(400).json({ message: "reason requerido" });
+    }
+
+    const success = workflowEngine.cancelWorkflow(req.params.id, reason);
+    
+    if (!success) {
+      return res.status(400).json({ message: "No se pudo cancelar el flujo" });
+    }
+
+    res.json({ message: "Flujo cancelado exitosamente" });
+  } catch (error) {
+    console.error("Error cancelando flujo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.get("/api/workflows/stats", authenticateUser, (req: any, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Acceso denegado" });
+    }
+    
+    const stats = workflowEngine.getWorkflowStats();
+    const health = workflowEngine.getWorkflowHealth();
+    
+    res.json({
+      stats,
+      health
+    });
+  } catch (error) {
+    console.error("Error obteniendo estadísticas de flujo:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+// ================================
 // RUTAS DE SISTEMA
 // ================================
 
 app.get("/api/health", (req, res) => {
+  const workflowHealth = workflowEngine.getWorkflowHealth();
+  
   res.json({ 
     status: "ok", 
-    message: "DocuSignPro Enhanced Server with RON",
+    message: "DocuSignPro Complete Business Logic System",
     timestamp: new Date().toISOString(),
     users: simpleStorage.getAllUsers().length,
     modules: {
@@ -934,9 +1067,15 @@ app.get("/api/health", (req, res) => {
       payments: paymentManager.getPaymentStats().totalTransactions,
       ronSessions: ronManager.getRONStats().totalSessions,
       identityVerifications: identityVerificationManager.getVerificationStats().totalSessions,
-      securityEvents: securityManager.getSecurityStats().totalEvents
+      securityEvents: securityManager.getSecurityStats().totalEvents,
+      activeWorkflows: workflowHealth.activeWorkflows,
+      systemLoad: workflowHealth.systemLoad
     },
-    version: "2.1.0-ron-enhanced"
+    systemHealth: {
+      workflowEngine: workflowHealth,
+      alerts: workflowHealth.alerts
+    },
+    version: "3.0.0-complete-business-logic"
   });
 });
 
@@ -950,18 +1089,31 @@ app.get("/api/stats/dashboard", authenticateUser, (req: any, res) => {
     const signatureStats = signatureManager.getSignatureStats();
     const notaryStats = notaryManager.getSystemStats();
     const paymentStats = paymentManager.getPaymentStats();
+    const ronStats = ronManager.getRONStats();
+    const identityStats = identityVerificationManager.getVerificationStats();
+    const workflowStats = workflowEngine.getWorkflowStats();
+    const workflowHealth = workflowEngine.getWorkflowHealth();
+    const securityStats = securityManager.getSecurityStats();
 
     res.json({
       overview: {
         totalUsers: simpleStorage.getAllUsers().length,
         totalDocuments: documentStats.total,
         totalNotarizations: notaryStats.totalNotarizations,
-        totalRevenue: paymentStats.totalAmount
+        totalRevenue: paymentStats.totalAmount,
+        activeWorkflows: workflowStats.activeWorkflows,
+        ronSessions: ronStats.totalSessions,
+        securityAlerts: securityStats.criticalAlerts
       },
       documents: documentStats,
       signatures: signatureStats,
       notaries: notaryStats,
-      payments: paymentStats
+      payments: paymentStats,
+      ron: ronStats,
+      identity: identityStats,
+      workflows: workflowStats,
+      workflowHealth,
+      security: securityStats
     });
   } catch (error) {
     console.error("Error obteniendo estadísticas del dashboard:", error);
@@ -998,6 +1150,12 @@ app.get("/dashboard", (req, res) => {
 app.get("/ron", (req, res) => {
   const ronPath = path.join(process.cwd(), "test-ron.html");
   res.sendFile(ronPath);
+});
+
+// Ruta para flujo de trabajo de documentos
+app.get("/workflow/:documentId", (req, res) => {
+  const dashboardPath = path.join(process.cwd(), "dashboard.html");
+  res.sendFile(dashboardPath);
 });
 
 // Catch-all para SPA
@@ -1075,9 +1233,17 @@ async function startEnhancedServer() {
        console.log("      GET  /api/identity/kba/:sessionId/:methodId - Preguntas KBA");
        console.log("      POST /api/identity/kba/submit - Enviar respuestas KBA");
        console.log("");
+       console.log("   ⚙️ FLUJO DE TRABAJO:");
+       console.log("      GET  /api/workflows - Mis flujos de trabajo");
+       console.log("      GET  /api/workflows/:id - Detalle de flujo");
+       console.log("      POST /api/workflows/:id/advance - Avanzar flujo");
+       console.log("      POST /api/workflows/:id/retry - Reintentar paso");
+       console.log("      POST /api/workflows/:id/cancel - Cancelar flujo");
+       console.log("");
        console.log("   📊 SISTEMA:");
        console.log("      GET  /api/health - Estado del sistema");
-       console.log("      GET  /api/stats/dashboard - Dashboard admin");
+       console.log("      GET  /api/stats/dashboard - Dashboard completo");
+       console.log("      GET  /api/workflows/stats - Estadísticas de flujo");
       console.log("");
              console.log("🌐 Frontend: http://localhost:5000");
        console.log("🧪 Pruebas básicas: http://localhost:5000/test");

@@ -460,7 +460,7 @@ export class DocumentManager {
     
     <div class="section">
         <h3>SEGUNDA: RENTA</h3>
-        <p>La renta mensual es de <strong>${{monthlyRent}} pesos chilenos</strong>, pagadera dentro de los primeros 5 días de cada mes.</p>
+        <p>La renta mensual es de <strong>{{monthlyRent}} pesos chilenos</strong>, pagadera dentro de los primeros 5 días de cada mes.</p>
     </div>
     
     <div class="section">
