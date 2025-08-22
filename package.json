@@ -9,11 +9,17 @@
     "dev-simple": "NODE_ENV=development tsx --no-check server/dev-server.ts",
     "dev-minimal": "NODE_ENV=development tsx --no-check server/minimal-server.ts",
     "dev-enhanced": "NODE_ENV=development tsx --no-check server/enhanced-server.ts",
-    "build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "NODE_ENV=production node dist/index.js",
+    "build": "esbuild server/production-server.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && npm run build:frontend",
+    "build:frontend": "vite build",
+    "build:server": "esbuild server/production-server.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "NODE_ENV=production node dist/production-server.js",
+    "start:dev": "NODE_ENV=development tsx --no-check server/production-server.ts",
     "check": "tsc --noEmit",
     "check-relaxed": "tsc --noEmit --skipLibCheck --noImplicitAny false",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
+    "deploy:prepare": "npm ci --only=production && npm run build",
+    "deploy:start": "npm run start"
   },
   "dependencies": {
     "@capacitor/android": "^7.2.0",
