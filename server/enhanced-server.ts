@@ -8,6 +8,9 @@ import { documentManager } from "./modules/document-manager";
 import { signatureManager } from "./modules/signature-manager";
 import { notaryManager } from "./modules/notary-manager";
 import { paymentManager } from "./modules/payment-manager";
+import { ronManager } from "./modules/ron-manager";
+import { identityVerificationManager } from "./modules/identity-verification";
+import { securityManager } from "./modules/security-manager";
 
 const app = express();
 
@@ -596,22 +599,344 @@ app.get("/api/payments", authenticateUser, (req: any, res) => {
 });
 
 // ================================
+// RUTAS RON (Remote Online Notarization)
+// ================================
+
+app.post("/api/ron/schedule", authenticateUser, (req: any, res) => {
+  try {
+    const { documentId, notaryId, scheduledAt, participants } = req.body;
+    
+    if (!documentId || !notaryId || !scheduledAt || !participants) {
+      return res.status(400).json({ message: "Campos requeridos: documentId, notaryId, scheduledAt, participants" });
+    }
+
+    const sessionId = ronManager.scheduleRONSession(
+      documentId,
+      parseInt(notaryId),
+      req.user.id,
+      new Date(scheduledAt),
+      participants
+    );
+
+    res.status(201).json({
+      message: "Sesión RON programada exitosamente",
+      sessionId,
+      meetingInfo: ronManager.getRONSession(sessionId)
+    });
+  } catch (error) {
+    console.error("Error programando sesión RON:", error);
+    res.status(500).json({ message: error.message || "Error interno del servidor" });
+  }
+});
+
+app.get("/api/ron/sessions", authenticateUser, (req: any, res) => {
+  try {
+    const sessions = ronManager.getClientRONSessions(req.user.id);
+    res.json(sessions);
+  } catch (error) {
+    console.error("Error obteniendo sesiones RON:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.get("/api/ron/sessions/:id", authenticateUser, (req: any, res) => {
+  try {
+    const session = ronManager.getRONSession(req.params.id);
+    
+    if (!session) {
+      return res.status(404).json({ message: "Sesión RON no encontrada" });
+    }
+
+    // Verificar acceso
+    if (session.clientId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "No tienes acceso a esta sesión" });
+    }
+
+    res.json(session);
+  } catch (error) {
+    console.error("Error obteniendo sesión RON:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/ron/sessions/:id/join", (req, res) => {
+  try {
+    const { participantId } = req.body;
+    const clientIP = req.ip || req.connection.remoteAddress || '127.0.0.1';
+    
+    if (!participantId) {
+      return res.status(400).json({ message: "participantId requerido" });
+    }
+
+    const result = ronManager.joinRONSession(req.params.id, participantId, clientIP);
+    
+    if (!result.success) {
+      return res.status(400).json({ message: result.error });
+    }
+
+    res.json({
+      message: "Unido a sesión RON exitosamente",
+      meetingInfo: result.meetingInfo
+    });
+  } catch (error) {
+    console.error("Error uniéndose a sesión RON:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/ron/sessions/:id/status", authenticateUser, (req: any, res) => {
+  try {
+    const { status, notes } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ message: "status requerido" });
+    }
+
+    const success = ronManager.updateSessionStatus(req.params.id, status, notes);
+    
+    if (!success) {
+      return res.status(404).json({ message: "Sesión no encontrada" });
+    }
+
+    res.json({ message: "Estado de sesión actualizado" });
+  } catch (error) {
+    console.error("Error actualizando estado de sesión:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.get("/api/ron/stats", authenticateUser, (req: any, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Acceso denegado" });
+    }
+    
+    const stats = ronManager.getRONStats();
+    res.json(stats);
+  } catch (error) {
+    console.error("Error obteniendo estadísticas RON:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+// ================================
+// RUTAS DE VERIFICACIÓN DE IDENTIDAD
+// ================================
+
+app.post("/api/identity/verify", authenticateUser, (req: any, res) => {
+  try {
+    const { purpose, requiredMethods } = req.body;
+    const clientIP = req.ip || req.connection.remoteAddress || '127.0.0.1';
+    const userAgent = req.get('User-Agent') || 'Unknown';
+    
+    if (!purpose) {
+      return res.status(400).json({ message: "purpose requerido" });
+    }
+
+    const methods = requiredMethods || identityVerificationManager.getRecommendedMethods(purpose);
+    
+    const sessionId = identityVerificationManager.createVerificationSession(
+      req.user.id,
+      purpose,
+      methods,
+      {
+        ipAddress: clientIP,
+        userAgent,
+        deviceFingerprint: crypto.createHash('md5').update(userAgent + clientIP).digest('hex')
+      }
+    );
+
+    res.status(201).json({
+      message: "Sesión de verificación creada",
+      sessionId,
+      requiredMethods: methods,
+      session: identityVerificationManager.getVerificationSession(sessionId)
+    });
+  } catch (error) {
+    console.error("Error creando verificación:", error);
+    res.status(500).json({ message: error.message || "Error interno del servidor" });
+  }
+});
+
+app.get("/api/identity/sessions/:id", authenticateUser, (req: any, res) => {
+  try {
+    const session = identityVerificationManager.getVerificationSession(req.params.id);
+    
+    if (!session) {
+      return res.status(404).json({ message: "Sesión de verificación no encontrada" });
+    }
+
+    if (session.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "No tienes acceso a esta sesión" });
+    }
+
+    res.json(session);
+  } catch (error) {
+    console.error("Error obteniendo sesión de verificación:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+app.post("/api/identity/analyze-document", authenticateUser, (req: any, res) => {
+  try {
+    const { sessionId, methodId, documentType, frontImage, backImage } = req.body;
+    
+    if (!sessionId || !methodId || !documentType || !frontImage) {
+      return res.status(400).json({ message: "Campos requeridos: sessionId, methodId, documentType, frontImage" });
+    }
+
+    const analysis = identityVerificationManager.analyzeDocument(
+      sessionId,
+      methodId,
+      documentType,
+      frontImage,
+      backImage
+    );
+
+    res.json({
+      message: "Documento analizado exitosamente",
+      analysis
+    });
+  } catch (error) {
+    console.error("Error analizando documento:", error);
+    res.status(500).json({ message: error.message || "Error interno del servidor" });
+  }
+});
+
+app.post("/api/identity/biometric", authenticateUser, (req: any, res) => {
+  try {
+    const { sessionId, methodId, biometricType, biometricData, quality, deviceInfo } = req.body;
+    
+    if (!sessionId || !methodId || !biometricType || !biometricData) {
+      return res.status(400).json({ message: "Campos requeridos: sessionId, methodId, biometricType, biometricData" });
+    }
+
+    const result = identityVerificationManager.performBiometricVerification(
+      sessionId,
+      methodId,
+      {
+        type: biometricType,
+        data: biometricData,
+        quality: quality || 80,
+        deviceInfo: deviceInfo || 'Unknown'
+      }
+    );
+
+    res.json({
+      message: "Verificación biométrica completada",
+      biometricData: result
+    });
+  } catch (error) {
+    console.error("Error en verificación biométrica:", error);
+    res.status(500).json({ message: error.message || "Error interno del servidor" });
+  }
+});
+
+app.post("/api/identity/liveness", authenticateUser, (req: any, res) => {
+  try {
+    const { sessionId, methodId, checkType, response } = req.body;
+    
+    if (!sessionId || !methodId || !checkType) {
+      return res.status(400).json({ message: "Campos requeridos: sessionId, methodId, checkType" });
+    }
+
+    const livenessCheck = identityVerificationManager.performLivenessCheck(
+      sessionId,
+      methodId,
+      checkType,
+      response
+    );
+
+    res.json({
+      message: "Detección de vida completada",
+      livenessCheck
+    });
+  } catch (error) {
+    console.error("Error en detección de vida:", error);
+    res.status(500).json({ message: error.message || "Error interno del servidor" });
+  }
+});
+
+app.get("/api/identity/kba/:sessionId/:methodId", authenticateUser, (req: any, res) => {
+  try {
+    const { sessionId, methodId } = req.params;
+    
+    const questions = identityVerificationManager.generateKBAQuestions(sessionId, methodId);
+    
+    res.json({
+      message: "Preguntas KBA generadas",
+      questions: questions.map(q => ({
+        id: q.id,
+        question: q.question,
+        options: q.options,
+        difficulty: q.difficulty
+      })) // No enviar respuestas correctas
+    });
+  } catch (error) {
+    console.error("Error generando preguntas KBA:", error);
+    res.status(500).json({ message: error.message || "Error interno del servidor" });
+  }
+});
+
+app.post("/api/identity/kba/submit", authenticateUser, (req: any, res) => {
+  try {
+    const { sessionId, methodId, answers } = req.body;
+    
+    if (!sessionId || !methodId || !answers) {
+      return res.status(400).json({ message: "Campos requeridos: sessionId, methodId, answers" });
+    }
+
+    const kbaResult = identityVerificationManager.submitKBAAnswers(sessionId, methodId, answers);
+    
+    res.json({
+      message: "Respuestas KBA evaluadas",
+      result: {
+        score: kbaResult.score,
+        status: kbaResult.status,
+        correctAnswers: kbaResult.answers.filter(a => a.isCorrect).length,
+        totalQuestions: kbaResult.questions.length
+      }
+    });
+  } catch (error) {
+    console.error("Error evaluando KBA:", error);
+    res.status(500).json({ message: error.message || "Error interno del servidor" });
+  }
+});
+
+app.get("/api/identity/stats", authenticateUser, (req: any, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Acceso denegado" });
+    }
+    
+    const stats = identityVerificationManager.getVerificationStats();
+    res.json(stats);
+  } catch (error) {
+    console.error("Error obteniendo estadísticas de verificación:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+// ================================
 // RUTAS DE SISTEMA
 // ================================
 
 app.get("/api/health", (req, res) => {
   res.json({ 
     status: "ok", 
-    message: "DocuSignPro Enhanced Server",
+    message: "DocuSignPro Enhanced Server with RON",
     timestamp: new Date().toISOString(),
     users: simpleStorage.getAllUsers().length,
     modules: {
       documents: documentManager.getDocumentStats().total,
       signatures: signatureManager.getSignatureStats().totalRequests,
       notaries: notaryManager.getAllActiveNotaries().length,
-      payments: paymentManager.getPaymentStats().totalTransactions
+      payments: paymentManager.getPaymentStats().totalTransactions,
+      ronSessions: ronManager.getRONStats().totalSessions,
+      identityVerifications: identityVerificationManager.getVerificationStats().totalSessions,
+      securityEvents: securityManager.getSecurityStats().totalEvents
     },
-    version: "2.0.0-enhanced"
+    version: "2.1.0-ron-enhanced"
   });
 });
 
@@ -669,6 +994,12 @@ app.get("/dashboard", (req, res) => {
   res.sendFile(dashboardPath);
 });
 
+// Ruta para pruebas RON
+app.get("/ron", (req, res) => {
+  const ronPath = path.join(process.cwd(), "test-ron.html");
+  res.sendFile(ronPath);
+});
+
 // Catch-all para SPA
 app.get("*", (req, res) => {
   const indexPath = path.join(process.cwd(), "dist/public/index.html");
@@ -722,19 +1053,38 @@ async function startEnhancedServer() {
       console.log("      GET  /api/notaries/:id/availability - Disponibilidad");
       console.log("      POST /api/notaries/appointments - Programar cita");
       console.log("");
-      console.log("   💳 PAGOS:");
-      console.log("      GET  /api/payments/providers - Proveedores de pago");
-      console.log("      POST /api/payments/calculate - Calcular total");
-      console.log("      POST /api/payments/create - Crear pago");
-      console.log("      GET  /api/payments - Mis pagos");
+             console.log("   💳 PAGOS:");
+       console.log("      GET  /api/payments/providers - Proveedores de pago");
+       console.log("      POST /api/payments/calculate - Calcular total");
+       console.log("      POST /api/payments/create - Crear pago");
+       console.log("      GET  /api/payments - Mis pagos");
+       console.log("");
+       console.log("   🎥 RON (Remote Online Notarization):");
+       console.log("      POST /api/ron/schedule - Programar sesión RON");
+       console.log("      GET  /api/ron/sessions - Mis sesiones RON");
+       console.log("      GET  /api/ron/sessions/:id - Detalle de sesión");
+       console.log("      POST /api/ron/sessions/:id/join - Unirse a sesión");
+       console.log("      POST /api/ron/sessions/:id/status - Actualizar estado");
+       console.log("");
+       console.log("   🆔 VERIFICACIÓN DE IDENTIDAD:");
+       console.log("      POST /api/identity/verify - Iniciar verificación");
+       console.log("      GET  /api/identity/sessions/:id - Estado de verificación");
+       console.log("      POST /api/identity/analyze-document - Analizar documento");
+       console.log("      POST /api/identity/biometric - Verificación biométrica");
+       console.log("      POST /api/identity/liveness - Detección de vida");
+       console.log("      GET  /api/identity/kba/:sessionId/:methodId - Preguntas KBA");
+       console.log("      POST /api/identity/kba/submit - Enviar respuestas KBA");
+       console.log("");
+       console.log("   📊 SISTEMA:");
+       console.log("      GET  /api/health - Estado del sistema");
+       console.log("      GET  /api/stats/dashboard - Dashboard admin");
       console.log("");
-      console.log("   📊 SISTEMA:");
-      console.log("      GET  /api/health - Estado del sistema");
-      console.log("      GET  /api/stats/dashboard - Dashboard admin");
-      console.log("");
-      console.log("🌐 Frontend: http://localhost:5000");
-      console.log("🧪 Página de pruebas: http://localhost:5000/test");
-      console.log("✅ ¡Sistema completo listo para desarrollo!");
+             console.log("🌐 Frontend: http://localhost:5000");
+       console.log("🧪 Pruebas básicas: http://localhost:5000/test");
+       console.log("🔬 Pruebas avanzadas: http://localhost:5000/enhanced");
+       console.log("📊 Dashboard: http://localhost:5000/dashboard");
+       console.log("🎥 Pruebas RON: http://localhost:5000/ron");
+       console.log("✅ ¡Sistema completo con RON listo para desarrollo!");
     });
     
   } catch (error) {
