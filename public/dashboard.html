@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuSignPro - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .sidebar { transition: transform 0.3s ease; }
+        .sidebar-hidden { transform: translateX(-100%); }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; z-index: 50; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Sidebar -->
+    <div id="sidebar" class="sidebar fixed left-0 top-0 h-full w-64 bg-white shadow-lg">
+        <div class="p-6 border-b">
+            <h1 class="text-xl font-bold text-blue-600">DocuSignPro</h1>
+            <p class="text-sm text-gray-500" id="user-role">Panel de Usuario</p>
+        </div>
+        
+        <nav class="mt-6">
+            <a href="#" onclick="showSection('overview')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 border-r-2 border-blue-600" data-section="overview">
+                <i class="fas fa-chart-line mr-3"></i>
+                Resumen
+            </a>
+            <a href="#" onclick="showSection('documents')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600" data-section="documents">
+                <i class="fas fa-file-alt mr-3"></i>
+                Documentos
+            </a>
+            <a href="#" onclick="showSection('signatures')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600" data-section="signatures">
+                <i class="fas fa-signature mr-3"></i>
+                Firmas
+            </a>
+            <a href="#" onclick="showSection('notaries')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600" data-section="notaries">
+                <i class="fas fa-balance-scale mr-3"></i>
+                Notarios
+            </a>
+            <a href="#" onclick="showSection('payments')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600" data-section="payments">
+                <i class="fas fa-credit-card mr-3"></i>
+                Pagos
+            </a>
+            <a href="#" onclick="showSection('profile')" class="nav-item flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600" data-section="profile">
+                <i class="fas fa-user mr-3"></i>
+                Perfil
+            </a>
+        </nav>
+        
+        <div class="absolute bottom-0 w-full p-6 border-t">
+            <button onclick="logout()" class="w-full bg-red-500 text-white py-2 rounded hover:bg-red-600">
+                <i class="fas fa-sign-out-alt mr-2"></i>
+                Cerrar Sesión
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-64 min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b p-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center">
+                    <button onclick="toggleSidebar()" class="md:hidden mr-4 text-gray-600">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 id="section-title" class="text-2xl font-semibold text-gray-800">Resumen</h2>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div id="connection-indicator" class="flex items-center space-x-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span class="text-sm text-gray-600">En línea</span>
+                    </div>
+                    <div id="user-info" class="text-sm text-gray-600">
+                        Cargando...
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="p-6">
+            <!-- Sección de Resumen -->
+            <div id="overview-section" class="section">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Documentos</p>
+                                <p class="text-3xl font-bold text-blue-600" id="total-documents">0</p>
+                            </div>
+                            <div class="bg-blue-100 p-3 rounded-full">
+                                <i class="fas fa-file-alt text-blue-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Firmas Pendientes</p>
+                                <p class="text-3xl font-bold text-orange-600" id="pending-signatures">0</p>
+                            </div>
+                            <div class="bg-orange-100 p-3 rounded-full">
+                                <i class="fas fa-signature text-orange-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Total Gastado</p>
+                                <p class="text-3xl font-bold text-green-600" id="total-spent">$0</p>
+                            </div>
+                            <div class="bg-green-100 p-3 rounded-full">
+                                <i class="fas fa-dollar-sign text-green-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Documentos Completados</p>
+                                <p class="text-3xl font-bold text-purple-600" id="completed-documents">0</p>
+                            </div>
+                            <div class="bg-purple-100 p-3 rounded-full">
+                                <i class="fas fa-check-circle text-purple-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold mb-4">Actividad Reciente</h3>
+                        <canvas id="activityChart" width="400" height="200"></canvas>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h3 class="text-lg font-semibold mb-4">Estado de Documentos</h3>
+                        <canvas id="statusChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Actividad Reciente -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold">Actividad Reciente</h3>
+                    </div>
+                    <div id="recent-activity" class="p-6">
+                        <!-- Actividad se carga dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Documentos -->
+            <div id="documents-section" class="section hidden">
+                <div class="bg-white rounded-lg shadow mb-6">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold">Mis Documentos</h3>
+                            <button onclick="showCreateDocumentModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                <i class="fas fa-plus mr-2"></i>
+                                Nuevo Documento
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="flex space-x-4 mb-4">
+                            <select id="doc-status-filter" class="p-2 border rounded">
+                                <option value="">Todos los estados</option>
+                                <option value="draft">Borrador</option>
+                                <option value="pending_payment">Pendiente de Pago</option>
+                                <option value="pending_signature">Pendiente de Firma</option>
+                                <option value="completed">Completado</option>
+                            </select>
+                            <input type="text" id="doc-search" placeholder="Buscar documentos..." class="flex-1 p-2 border rounded">
+                            <button onclick="filterDocuments()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                                Filtrar
+                            </button>
+                        </div>
+                        
+                        <div id="documents-grid" class="grid gap-4">
+                            <!-- Documentos se cargan dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Firmas -->
+            <div id="signatures-section" class="section hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold">Solicitudes de Firma</h3>
+                        </div>
+                        <div class="p-6">
+                            <div id="signature-requests" class="space-y-4">
+                                <!-- Solicitudes se cargan dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold">Firmas Pendientes</h3>
+                        </div>
+                        <div class="p-6">
+                            <div id="pending-signatures-list" class="space-y-4">
+                                <!-- Firmas pendientes se cargan dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Notarios -->
+            <div id="notaries-section" class="section hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold">Notarios Disponibles</h3>
+                            <div class="flex space-x-2">
+                                <input type="text" id="notary-search-input" placeholder="Buscar..." class="p-2 border rounded">
+                                <button onclick="searchNotariesDashboard()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                    Buscar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div id="notaries-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <!-- Notarios se cargan dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Pagos -->
+            <div id="payments-section" class="section hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold">Historial de Pagos</h3>
+                        </div>
+                        <div class="p-6">
+                            <div id="payments-history" class="space-y-4">
+                                <!-- Historial se carga dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-semibold">Estadísticas de Pago</h3>
+                        </div>
+                        <div class="p-6">
+                            <div id="payment-stats" class="space-y-4">
+                                <!-- Estadísticas se cargan dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Perfil -->
+            <div id="profile-section" class="section hidden">
+                <div class="max-w-2xl bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-semibold">Mi Perfil</h3>
+                    </div>
+                    <div class="p-6">
+                        <form id="profile-form" class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
+                                    <input type="text" id="profile-fullname" class="w-full p-3 border rounded-lg" readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Usuario</label>
+                                    <input type="text" id="profile-username" class="w-full p-3 border rounded-lg" readonly>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                <input type="email" id="profile-email" class="w-full p-3 border rounded-lg" readonly>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Rol</label>
+                                    <input type="text" id="profile-role" class="w-full p-3 border rounded-lg bg-gray-50" readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Plataforma</label>
+                                    <input type="text" id="profile-platform" class="w-full p-3 border rounded-lg bg-gray-50" readonly>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Miembro desde</label>
+                                <input type="text" id="profile-created" class="w-full p-3 border rounded-lg bg-gray-50" readonly>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal para crear documento -->
+    <div id="create-document-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">Crear Nuevo Documento</h3>
+                        <button onclick="closeCreateDocumentModal()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-6">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Plantilla</label>
+                            <select id="modal-template-select" class="w-full p-3 border rounded-lg">
+                                <option value="">Seleccionar plantilla...</option>
+                            </select>
+                        </div>
+                        
+                        <div id="template-info" class="hidden p-4 bg-blue-50 rounded-lg">
+                            <!-- Información de la plantilla -->
+                        </div>
+                        
+                        <div id="document-form-fields" class="space-y-4">
+                            <!-- Campos del formulario se generan dinámicamente -->
+                        </div>
+                        
+                        <div class="flex justify-end space-x-4">
+                            <button onclick="closeCreateDocumentModal()" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                                Cancelar
+                            </button>
+                            <button onclick="createDocument()" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                                Crear Documento
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed top-4 right-4 space-y-2 z-50">
+        <!-- Toasts aparecen aquí -->
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+        let currentSection = 'overview';
+
+        // Funciones de utilidad
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            const toastId = `toast-${Date.now()}`;
+            
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            
+            const toast = document.createElement('div');
+            toast.id = toastId;
+            toast.className = `${colors[type]} text-white p-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
+            toast.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>${message}</span>
+                    <button onclick="removeToast('${toastId}')" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Animar entrada
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Auto-remove después de 5 segundos
+            setTimeout(() => {
+                removeToast(toastId);
+            }, 5000);
+        }
+
+        function removeToast(toastId) {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('sidebar-hidden');
+        }
+
+        function showSection(sectionName) {
+            // Ocultar todas las secciones
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Mostrar sección seleccionada
+            document.getElementById(`${sectionName}-section`).classList.remove('hidden');
+            
+            // Actualizar navegación
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('border-r-2', 'border-blue-600', 'bg-blue-50', 'text-blue-600');
+                item.classList.add('text-gray-700');
+            });
+            
+            const activeItem = document.querySelector(`[data-section="${sectionName}"]`);
+            activeItem.classList.add('border-r-2', 'border-blue-600', 'bg-blue-50', 'text-blue-600');
+            activeItem.classList.remove('text-gray-700');
+            
+            // Actualizar título
+            const titles = {
+                overview: 'Resumen',
+                documents: 'Documentos',
+                signatures: 'Firmas',
+                notaries: 'Notarios',
+                payments: 'Pagos',
+                profile: 'Perfil'
+            };
+            document.getElementById('section-title').textContent = titles[sectionName];
+            
+            currentSection = sectionName;
+            
+            // Cargar datos específicos de la sección
+            loadSectionData(sectionName);
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+                }
+            };
+
+            try {
+                const response = await fetch(endpoint, { ...defaultOptions, ...options });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || `HTTP ${response.status}`);
+                }
+                
+                return response.json();
+            } catch (error) {
+                console.error(`API Error: ${endpoint}`, error);
+                throw error;
+            }
+        }
+
+        // Funciones de carga de datos
+        async function loadSectionData(section) {
+            switch (section) {
+                case 'overview':
+                    await loadOverviewData();
+                    break;
+                case 'documents':
+                    await loadDocumentsData();
+                    break;
+                case 'signatures':
+                    await loadSignaturesData();
+                    break;
+                case 'notaries':
+                    await loadNotariesData();
+                    break;
+                case 'payments':
+                    await loadPaymentsData();
+                    break;
+                case 'profile':
+                    await loadProfileData();
+                    break;
+            }
+        }
+
+        async function loadOverviewData() {
+            try {
+                if (!authToken) return;
+                
+                // Cargar estadísticas generales
+                const [documents, health] = await Promise.all([
+                    apiCall('/api/documents'),
+                    apiCall('/api/health')
+                ]);
+
+                // Actualizar contadores
+                document.getElementById('total-documents').textContent = documents.length;
+                document.getElementById('completed-documents').textContent = documents.filter(d => d.status === 'completed').length;
+                document.getElementById('pending-signatures').textContent = documents.filter(d => d.status === 'pending_signature').length;
+
+                // Crear gráfico de actividad (simulado)
+                createActivityChart();
+                createStatusChart(documents);
+                
+                showToast('Datos del resumen actualizados', 'success');
+            } catch (error) {
+                showToast(`Error cargando resumen: ${error.message}`, 'error');
+            }
+        }
+
+        function createActivityChart() {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                    datasets: [{
+                        label: 'Documentos Creados',
+                        data: [2, 5, 3, 8, 4, 6, 1],
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStatusChart(documents) {
+            const statusCounts = {};
+            documents.forEach(doc => {
+                statusCounts[doc.status] = (statusCounts[doc.status] || 0) + 1;
+            });
+
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCounts),
+                    datasets: [{
+                        data: Object.values(statusCounts),
+                        backgroundColor: [
+                            '#10B981', // green
+                            '#F59E0B', // yellow
+                            '#3B82F6', // blue
+                            '#6B7280', // gray
+                            '#8B5CF6'  // purple
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Funciones de autenticación
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('authToken');
+            window.location.href = '/enhanced';
+        }
+
+        // Inicialización
+        window.addEventListener('load', async () => {
+            // Verificar autenticación
+            if (!authToken) {
+                window.location.href = '/enhanced';
+                return;
+            }
+
+            try {
+                // Verificar token y cargar usuario
+                const health = await apiCall('/api/health');
+                
+                // Simular datos de usuario (en producción obtener del token)
+                currentUser = {
+                    id: 1,
+                    fullName: 'Usuario Demo',
+                    email: 'demo@docusignpro.com',
+                    role: 'user',
+                    platform: 'notarypro'
+                };
+                
+                document.getElementById('user-info').innerHTML = `👤 ${currentUser.fullName}`;
+                document.getElementById('user-role').textContent = `Panel de ${currentUser.role}`;
+                
+                // Cargar datos iniciales
+                await loadSectionData('overview');
+                
+                showToast('Dashboard cargado exitosamente', 'success');
+            } catch (error) {
+                showToast('Error de autenticación', 'error');
+                setTimeout(() => {
+                    window.location.href = '/enhanced';
+                }, 2000);
+            }
+        });
+
+        // Auto-refresh cada 60 segundos
+        setInterval(() => {
+            if (document.visibilityState === 'visible' && authToken) {
+                loadSectionData(currentSection);
+            }
+        }, 60000);
+    </script>
+</body>
+</html>
