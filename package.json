@@ -8,6 +8,7 @@
     "dev-no-check": "NODE_ENV=development tsx --no-check server/index.ts",
     "dev-simple": "NODE_ENV=development tsx --no-check server/dev-server.ts",
     "dev-minimal": "NODE_ENV=development tsx --no-check server/minimal-server.ts",
+    "dev-enhanced": "NODE_ENV=development tsx --no-check server/enhanced-server.ts",
     "build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",

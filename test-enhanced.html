@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuSignPro Enhanced - Pruebas Completas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .signature-pad { border: 2px solid #ccc; border-radius: 8px; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6">
+        <h1 class="text-4xl font-bold text-center mb-8 text-blue-600">
+            🚀 DocuSignPro Enhanced - Sistema Completo
+        </h1>
+        
+        <!-- Barra de Estado -->
+        <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+            <div class="flex justify-between items-center">
+                <div id="connection-status" class="flex items-center space-x-2">
+                    <div class="w-3 h-3 bg-red-500 rounded-full" id="status-indicator"></div>
+                    <span id="status-text">Conectando...</span>
+                </div>
+                <div id="user-info" class="text-sm text-gray-600">
+                    No autenticado
+                </div>
+            </div>
+        </div>
+
+        <!-- Autenticación -->
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">🔐 Autenticación</h2>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="auth-username" placeholder="Usuario" class="p-2 border rounded">
+                        <input type="password" id="auth-password" placeholder="Contraseña" class="p-2 border rounded">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="login()" class="bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+                            Iniciar Sesión
+                        </button>
+                        <button onclick="logout()" class="bg-gray-500 text-white py-2 rounded hover:bg-gray-600">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+                <div id="auth-result" class="mt-4"></div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">📊 Estado del Sistema</h2>
+                <div id="system-status" class="space-y-2">
+                    <button onclick="loadSystemStatus()" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">
+                        Actualizar Estado
+                    </button>
+                    <div id="system-info" class="text-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestañas de Funcionalidades -->
+        <div class="bg-white rounded-lg shadow-md">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button onclick="showTab('documents')" class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="documents">
+                        📄 Documentos
+                    </button>
+                    <button onclick="showTab('signatures')" class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="signatures">
+                        ✍️ Firmas
+                    </button>
+                    <button onclick="showTab('notaries')" class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="notaries">
+                        ⚖️ Notarios
+                    </button>
+                    <button onclick="showTab('payments')" class="tab-button border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" data-tab="payments">
+                        💳 Pagos
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Panel de Documentos -->
+            <div id="documents-panel" class="tab-panel p-6">
+                <h3 class="text-lg font-semibold mb-4">Gestión de Documentos</h3>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-medium mb-2">Plantillas Disponibles</h4>
+                        <button onclick="loadTemplates()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4">
+                            Cargar Plantillas
+                        </button>
+                        <div id="templates-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium mb-2">Mis Documentos</h4>
+                        <button onclick="loadMyDocuments()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mb-4">
+                            Cargar Mis Documentos
+                        </button>
+                        <div id="documents-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 p-4 bg-gray-50 rounded">
+                    <h4 class="font-medium mb-2">Crear Nuevo Documento</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <select id="template-select" class="p-2 border rounded">
+                            <option value="">Seleccionar plantilla...</option>
+                        </select>
+                        <button onclick="showDocumentForm()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                            Crear Documento
+                        </button>
+                    </div>
+                    <div id="document-form" class="mt-4 hidden"></div>
+                </div>
+            </div>
+
+            <!-- Panel de Firmas -->
+            <div id="signatures-panel" class="tab-panel p-6 hidden">
+                <h3 class="text-lg font-semibold mb-4">Gestión de Firmas Digitales</h3>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-medium mb-2">Solicitar Firma</h4>
+                        <div class="space-y-3">
+                            <input type="text" id="sig-document-id" placeholder="ID del Documento" class="w-full p-2 border rounded">
+                            <input type="email" id="sig-email" placeholder="Email del Firmante" class="w-full p-2 border rounded">
+                            <input type="text" id="sig-name" placeholder="Nombre del Firmante" class="w-full p-2 border rounded">
+                            <textarea id="sig-message" placeholder="Mensaje opcional" class="w-full p-2 border rounded h-20"></textarea>
+                            <button onclick="requestSignature()" class="w-full bg-orange-500 text-white py-2 rounded hover:bg-orange-600">
+                                Enviar Solicitud
+                            </button>
+                        </div>
+                        <div id="signature-request-result" class="mt-4"></div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium mb-2">Firmas Pendientes</h4>
+                        <button onclick="loadPendingSignatures()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 mb-4">
+                            Cargar Pendientes
+                        </button>
+                        <div id="pending-signatures" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Notarios -->
+            <div id="notaries-panel" class="tab-panel p-6 hidden">
+                <h3 class="text-lg font-semibold mb-4">Servicios Notariales</h3>
+                
+                <div class="mb-4">
+                    <div class="flex space-x-2">
+                        <input type="text" id="notary-search" placeholder="Buscar notarios..." class="flex-1 p-2 border rounded">
+                        <button onclick="searchNotaries()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            Buscar
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="notaries-list" class="grid gap-4"></div>
+            </div>
+
+            <!-- Panel de Pagos -->
+            <div id="payments-panel" class="tab-panel p-6 hidden">
+                <h3 class="text-lg font-semibold mb-4">Sistema de Pagos</h3>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-medium mb-2">Proveedores de Pago</h4>
+                        <button onclick="loadPaymentProviders()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4">
+                            Cargar Proveedores
+                        </button>
+                        <div id="payment-providers" class="space-y-2"></div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-medium mb-2">Calculadora de Pagos</h4>
+                        <div class="space-y-3">
+                            <input type="number" id="payment-amount" placeholder="Monto (CLP)" class="w-full p-2 border rounded">
+                            <select id="payment-provider" class="w-full p-2 border rounded">
+                                <option value="">Seleccionar proveedor...</option>
+                            </select>
+                            <button onclick="calculatePayment()" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">
+                                Calcular Total
+                            </button>
+                        </div>
+                        <div id="payment-calculation" class="mt-4"></div>
+                    </div>
+                </div>
+                
+                <div class="mt-6">
+                    <h4 class="font-medium mb-2">Mis Pagos</h4>
+                    <button onclick="loadMyPayments()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mb-4">
+                        Cargar Mis Pagos
+                    </button>
+                    <div id="my-payments" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log de Actividad -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800">📋 Log de Actividad</h2>
+                <button onclick="clearLog()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Limpiar
+                </button>
+            </div>
+            <div id="activity-log" class="bg-gray-50 p-4 rounded text-sm font-mono h-40 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+
+        // Funciones de utilidad
+        function log(message) {
+            const logDiv = document.getElementById('activity-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('activity-log').innerHTML = '';
+        }
+
+        function updateConnectionStatus(isConnected) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            
+            if (isConnected) {
+                indicator.className = 'w-3 h-3 bg-green-500 rounded-full';
+                text.textContent = 'Conectado';
+            } else {
+                indicator.className = 'w-3 h-3 bg-red-500 rounded-full';
+                text.textContent = 'Desconectado';
+            }
+        }
+
+        function updateUserInfo(user) {
+            const userInfo = document.getElementById('user-info');
+            if (user) {
+                userInfo.innerHTML = `👤 ${user.fullName} (${user.role})`;
+                currentUser = user;
+            } else {
+                userInfo.textContent = 'No autenticado';
+                currentUser = null;
+            }
+        }
+
+        function showTab(tabName) {
+            // Ocultar todos los paneles
+            document.querySelectorAll('.tab-panel').forEach(panel => {
+                panel.classList.add('hidden');
+            });
+            
+            // Mostrar panel seleccionado
+            document.getElementById(`${tabName}-panel`).classList.remove('hidden');
+            
+            // Actualizar botones de pestañas
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('border-blue-500', 'text-blue-600');
+                button.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.remove('border-transparent', 'text-gray-500');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('border-blue-500', 'text-blue-600');
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+                }
+            };
+
+            const response = await fetch(endpoint, { ...defaultOptions, ...options });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || `HTTP ${response.status}`);
+            }
+            
+            return response.json();
+        }
+
+        // Funciones de autenticación
+        async function login() {
+            try {
+                const username = document.getElementById('auth-username').value;
+                const password = document.getElementById('auth-password').value;
+                
+                if (!username || !password) {
+                    throw new Error('Usuario y contraseña requeridos');
+                }
+
+                log(`🔐 Intentando login: ${username}`);
+                
+                const result = await apiCall('/api/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+
+                authToken = result.token;
+                localStorage.setItem('authToken', authToken);
+                updateUserInfo(result.user);
+
+                document.getElementById('auth-result').innerHTML = `
+                    <div class="p-3 bg-green-100 border border-green-400 rounded">
+                        <strong>✅ ${result.message}</strong><br>
+                        Token: ${result.token.substring(0, 20)}...
+                    </div>
+                `;
+
+                log(`✅ Login exitoso para ${username}`);
+                loadSystemStatus();
+            } catch (error) {
+                document.getElementById('auth-result').innerHTML = `
+                    <div class="p-3 bg-red-100 border border-red-400 rounded">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+                log(`❌ Error en login: ${error.message}`);
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('authToken');
+            updateUserInfo(null);
+            document.getElementById('auth-result').innerHTML = '';
+            log('👋 Sesión cerrada');
+        }
+
+        // Funciones del sistema
+        async function loadSystemStatus() {
+            try {
+                log('📊 Cargando estado del sistema...');
+                const health = await apiCall('/api/health');
+                
+                updateConnectionStatus(true);
+                
+                document.getElementById('system-info').innerHTML = `
+                    <div class="text-xs space-y-1">
+                        <div><strong>Versión:</strong> ${health.version}</div>
+                        <div><strong>Usuarios:</strong> ${health.users}</div>
+                        <div><strong>Documentos:</strong> ${health.modules.documents}</div>
+                        <div><strong>Firmas:</strong> ${health.modules.signatures}</div>
+                        <div><strong>Notarios:</strong> ${health.modules.notaries}</div>
+                        <div><strong>Pagos:</strong> ${health.modules.payments}</div>
+                    </div>
+                `;
+                
+                log('✅ Estado del sistema actualizado');
+            } catch (error) {
+                updateConnectionStatus(false);
+                log(`❌ Error cargando estado: ${error.message}`);
+            }
+        }
+
+        // Funciones de documentos
+        async function loadTemplates() {
+            try {
+                log('📄 Cargando plantillas de documentos...');
+                const templates = await apiCall('/api/documents/templates');
+                
+                let templatesHtml = '';
+                const templateSelect = document.getElementById('template-select');
+                templateSelect.innerHTML = '<option value="">Seleccionar plantilla...</option>';
+                
+                templates.forEach(template => {
+                    templatesHtml += `
+                        <div class="p-3 bg-gray-50 rounded border">
+                            <div class="font-medium">${template.name}</div>
+                            <div class="text-sm text-gray-600">${template.description}</div>
+                            <div class="text-xs text-green-600">$${template.price.toLocaleString()} CLP - ${template.estimatedTime} min</div>
+                        </div>
+                    `;
+                    
+                    templateSelect.innerHTML += `<option value="${template.id}">${template.name}</option>`;
+                });
+                
+                document.getElementById('templates-list').innerHTML = templatesHtml;
+                log(`✅ ${templates.length} plantillas cargadas`);
+            } catch (error) {
+                log(`❌ Error cargando plantillas: ${error.message}`);
+            }
+        }
+
+        async function loadMyDocuments() {
+            try {
+                if (!authToken) {
+                    throw new Error('Debes estar autenticado');
+                }
+                
+                log('📄 Cargando mis documentos...');
+                const documents = await apiCall('/api/documents');
+                
+                let documentsHtml = '';
+                documents.forEach(doc => {
+                    const statusColor = {
+                        'draft': 'bg-gray-100 text-gray-800',
+                        'pending_payment': 'bg-yellow-100 text-yellow-800',
+                        'pending_signature': 'bg-blue-100 text-blue-800',
+                        'completed': 'bg-green-100 text-green-800'
+                    }[doc.status] || 'bg-gray-100 text-gray-800';
+                    
+                    documentsHtml += `
+                        <div class="p-3 bg-gray-50 rounded border">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-medium">${doc.title}</div>
+                                    <div class="text-sm text-gray-600">ID: ${doc.id}</div>
+                                    <div class="text-xs text-gray-500">${new Date(doc.createdAt).toLocaleString()}</div>
+                                </div>
+                                <span class="px-2 py-1 text-xs rounded ${statusColor}">${doc.status}</span>
+                            </div>
+                            <button onclick="viewDocument('${doc.id}')" class="mt-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">
+                                Ver HTML
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('documents-list').innerHTML = documentsHtml;
+                log(`✅ ${documents.length} documentos cargados`);
+            } catch (error) {
+                log(`❌ Error cargando documentos: ${error.message}`);
+            }
+        }
+
+        async function viewDocument(documentId) {
+            try {
+                log(`👁️ Abriendo documento ${documentId}...`);
+                window.open(`/api/documents/${documentId}/html`, '_blank');
+            } catch (error) {
+                log(`❌ Error abriendo documento: ${error.message}`);
+            }
+        }
+
+        // Funciones de notarios
+        async function searchNotaries() {
+            try {
+                const query = document.getElementById('notary-search').value;
+                log(`⚖️ Buscando notarios: "${query}"`);
+                
+                const notaries = await apiCall(`/api/notaries${query ? `?search=${encodeURIComponent(query)}` : ''}`);
+                
+                let notariesHtml = '';
+                notaries.forEach(notary => {
+                    notariesHtml += `
+                        <div class="p-4 bg-gray-50 rounded border">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="font-medium">${notary.userName}</div>
+                                    <div class="text-sm text-gray-600">${notary.jurisdiction}</div>
+                                    <div class="text-xs text-gray-500">Licencia: ${notary.licenseNumber}</div>
+                                    <div class="text-xs text-blue-600">${notary.specializations.slice(0, 2).join(', ')}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm font-medium text-green-600">Activo</div>
+                                    <button onclick="viewNotaryDetails(${notary.id})" class="mt-1 text-xs bg-blue-500 text-white px-2 py-1 rounded">
+                                        Ver Detalles
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('notaries-list').innerHTML = notariesHtml;
+                log(`✅ ${notaries.length} notarios encontrados`);
+            } catch (error) {
+                log(`❌ Error buscando notarios: ${error.message}`);
+            }
+        }
+
+        async function viewNotaryDetails(notaryId) {
+            try {
+                log(`👁️ Cargando detalles del notario ${notaryId}...`);
+                const notary = await apiCall(`/api/notaries/${notaryId}`);
+                
+                alert(`Notario: ${notary.userName}\nJurisdicción: ${notary.jurisdiction}\nServicios: ${notary.services.length}\nNotarizaciones: ${notary.stats.totalNotarizations}`);
+                
+                log(`✅ Detalles del notario cargados`);
+            } catch (error) {
+                log(`❌ Error cargando detalles: ${error.message}`);
+            }
+        }
+
+        // Funciones de pagos
+        async function loadPaymentProviders() {
+            try {
+                log('💳 Cargando proveedores de pago...');
+                const providers = await apiCall('/api/payments/providers');
+                
+                let providersHtml = '';
+                const providerSelect = document.getElementById('payment-provider');
+                providerSelect.innerHTML = '<option value="">Seleccionar proveedor...</option>';
+                
+                providers.forEach(provider => {
+                    providersHtml += `
+                        <div class="p-3 bg-gray-50 rounded border">
+                            <div class="font-medium">${provider.name}</div>
+                            <div class="text-sm text-gray-600">Comisión: ${provider.fees.percentage}% + $${provider.fees.fixedAmount}</div>
+                            <div class="text-xs text-gray-500">${provider.supportedMethods.join(', ')}</div>
+                        </div>
+                    `;
+                    
+                    providerSelect.innerHTML += `<option value="${provider.id}">${provider.name}</option>`;
+                });
+                
+                document.getElementById('payment-providers').innerHTML = providersHtml;
+                log(`✅ ${providers.length} proveedores cargados`);
+            } catch (error) {
+                log(`❌ Error cargando proveedores: ${error.message}`);
+            }
+        }
+
+        async function calculatePayment() {
+            try {
+                const amount = parseInt(document.getElementById('payment-amount').value);
+                const providerId = document.getElementById('payment-provider').value;
+                
+                if (!amount || !providerId) {
+                    throw new Error('Monto y proveedor requeridos');
+                }
+
+                log(`💰 Calculando pago: $${amount} con ${providerId}`);
+                
+                const calculation = await apiCall('/api/payments/calculate', {
+                    method: 'POST',
+                    body: JSON.stringify({ amount, providerId })
+                });
+
+                document.getElementById('payment-calculation').innerHTML = `
+                    <div class="p-3 bg-blue-50 border border-blue-400 rounded">
+                        <div class="text-sm">
+                            <div><strong>Monto base:</strong> $${calculation.baseAmount.toLocaleString()}</div>
+                            <div><strong>Comisiones:</strong> $${calculation.fees.toLocaleString()}</div>
+                            <div class="border-t pt-1 mt-1"><strong>Total:</strong> $${calculation.totalAmount.toLocaleString()}</div>
+                        </div>
+                    </div>
+                `;
+
+                log(`✅ Cálculo completado: $${calculation.totalAmount.toLocaleString()}`);
+            } catch (error) {
+                log(`❌ Error calculando pago: ${error.message}`);
+            }
+        }
+
+        // Funciones de firmas
+        async function requestSignature() {
+            try {
+                if (!authToken) {
+                    throw new Error('Debes estar autenticado');
+                }
+                
+                const documentId = document.getElementById('sig-document-id').value;
+                const signerEmail = document.getElementById('sig-email').value;
+                const signerName = document.getElementById('sig-name').value;
+                const message = document.getElementById('sig-message').value;
+                
+                if (!documentId || !signerEmail || !signerName) {
+                    throw new Error('Todos los campos son requeridos');
+                }
+
+                log(`✍️ Solicitando firma para documento ${documentId}...`);
+                
+                const result = await apiCall('/api/signatures/request', {
+                    method: 'POST',
+                    body: JSON.stringify({ documentId, signerEmail, signerName, message })
+                });
+
+                document.getElementById('signature-request-result').innerHTML = `
+                    <div class="p-3 bg-green-100 border border-green-400 rounded">
+                        <strong>✅ ${result.message}</strong><br>
+                        <div class="text-sm mt-2">
+                            <strong>ID:</strong> ${result.requestId}<br>
+                            <strong>URL:</strong> <a href="${result.signatureUrl}" target="_blank" class="text-blue-600 underline">Abrir</a>
+                        </div>
+                    </div>
+                `;
+
+                // Limpiar formulario
+                document.getElementById('sig-document-id').value = '';
+                document.getElementById('sig-email').value = '';
+                document.getElementById('sig-name').value = '';
+                document.getElementById('sig-message').value = '';
+
+                log(`✅ Solicitud de firma creada: ${result.requestId}`);
+            } catch (error) {
+                document.getElementById('signature-request-result').innerHTML = `
+                    <div class="p-3 bg-red-100 border border-red-400 rounded">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+                log(`❌ Error solicitando firma: ${error.message}`);
+            }
+        }
+
+        // Inicialización
+        window.addEventListener('load', () => {
+            log('🌐 DocuSignPro Enhanced cargado');
+            
+            // Verificar token existente
+            if (authToken) {
+                log('🔑 Token existente encontrado, verificando...');
+                loadSystemStatus();
+            }
+            
+            // Mostrar primera pestaña
+            showTab('documents');
+            
+            // Cargar estado inicial
+            loadSystemStatus();
+            loadTemplates();
+        });
+
+        // Auto-refresh cada 30 segundos
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                loadSystemStatus();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
