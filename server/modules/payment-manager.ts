@@ -1,6 +1,7 @@
 import { documentManager, type Document } from "./document-manager";
 import { notaryManager } from "./notary-manager";
 import { simpleStorage } from "../simple-storage";
+import { billingCommunicationService } from "../services/billing-communication-service";
 import crypto from "crypto";
 
 export interface PaymentProvider {
@@ -307,6 +308,9 @@ export class PaymentManager {
       }
     }
 
+    // Send billing communication for payment confirmation
+    this.sendPaymentConfirmationCommunication(payment);
+
     console.log(`✅ Pago ${paymentId} completado exitosamente`);
     return true;
   }
@@ -323,6 +327,9 @@ export class PaymentManager {
       action: 'failed',
       description: `Pago falló: ${reason}`
     });
+
+    // Send billing communication for payment failure
+    this.sendPaymentFailedCommunication(payment, reason);
 
     console.log(`❌ Pago ${paymentId} falló: ${reason}`);
     return true;
@@ -678,6 +685,151 @@ export class PaymentManager {
     }
 
     return cleaned;
+  }
+
+  // Billing communication methods
+  private async sendPaymentConfirmationCommunication(payment: PaymentIntent): Promise<void> {
+    try {
+      const user = simpleStorage.findUserById(payment.userId);
+      if (!user) return;
+
+      const document = payment.metadata.documentId ? 
+        documentManager.getDocument(payment.metadata.documentId) : null;
+
+      // Generate billing communication identifier
+      const communicationId = `bc-${crypto.randomBytes(16).toString('hex')}`;
+
+      await billingCommunicationService.processBillingCommunicationIdentifier(
+        communicationId,
+        {
+          userId: payment.userId,
+          paymentId: payment.id,
+          documentId: payment.metadata.documentId,
+          type: 'payment_confirmation',
+          recipientEmail: user.email,
+          recipientName: user.fullName,
+          variables: {
+            userName: user.fullName,
+            documentTitle: document?.title || 'Documento',
+            documentId: payment.metadata.documentId || payment.id,
+            paymentAmount: payment.amount,
+            paymentId: payment.id,
+            transactionId: payment.transactionId
+          }
+        }
+      );
+
+      console.log(`📧 Comunicación de confirmación de pago enviada para: ${payment.id}`);
+    } catch (error) {
+      console.error(`Error enviando comunicación de confirmación de pago:`, error);
+    }
+  }
+
+  private async sendPaymentFailedCommunication(payment: PaymentIntent, reason: string): Promise<void> {
+    try {
+      const user = simpleStorage.findUserById(payment.userId);
+      if (!user) return;
+
+      const document = payment.metadata.documentId ? 
+        documentManager.getDocument(payment.metadata.documentId) : null;
+
+      // Generate billing communication identifier
+      const communicationId = `bc-${crypto.randomBytes(16).toString('hex')}`;
+
+      await billingCommunicationService.processBillingCommunicationIdentifier(
+        communicationId,
+        {
+          userId: payment.userId,
+          paymentId: payment.id,
+          documentId: payment.metadata.documentId,
+          type: 'payment_failed',
+          recipientEmail: user.email,
+          recipientName: user.fullName,
+          variables: {
+            userName: user.fullName,
+            documentTitle: document?.title || 'Documento',
+            documentId: payment.metadata.documentId || payment.id,
+            paymentAmount: payment.amount,
+            paymentId: payment.id,
+            failureReason: reason
+          }
+        }
+      );
+
+      console.log(`📧 Comunicación de pago fallido enviada para: ${payment.id}`);
+    } catch (error) {
+      console.error(`Error enviando comunicación de pago fallido:`, error);
+    }
+  }
+
+  public async sendPaymentReminderCommunication(paymentId: string, dueDate?: Date): Promise<boolean> {
+    try {
+      const payment = this.getPaymentIntent(paymentId);
+      if (!payment || payment.status !== 'pending') return false;
+
+      const user = simpleStorage.findUserById(payment.userId);
+      if (!user) return false;
+
+      const document = payment.metadata.documentId ? 
+        documentManager.getDocument(payment.metadata.documentId) : null;
+
+      // Generate billing communication identifier
+      const communicationId = `bc-${crypto.randomBytes(16).toString('hex')}`;
+
+      await billingCommunicationService.processBillingCommunicationIdentifier(
+        communicationId,
+        {
+          userId: payment.userId,
+          paymentId: payment.id,
+          documentId: payment.metadata.documentId,
+          type: 'payment_reminder',
+          recipientEmail: user.email,
+          recipientName: user.fullName,
+          variables: {
+            userName: user.fullName,
+            documentTitle: document?.title || 'Documento',
+            documentId: payment.metadata.documentId || payment.id,
+            paymentAmount: payment.amount,
+            paymentId: payment.id,
+            dueDate: dueDate ? dueDate.toLocaleDateString('es-CL') : 'Pendiente'
+          }
+        }
+      );
+
+      console.log(`📧 Recordatorio de pago enviado para: ${payment.id}`);
+      return true;
+    } catch (error) {
+      console.error(`Error enviando recordatorio de pago:`, error);
+      return false;
+    }
+  }
+
+  public async processSpecificBillingCommunication(
+    identifier: string = 'bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4',
+    context: {
+      userId: number;
+      paymentId?: string;
+      documentId?: string;
+      type: 'payment_confirmation' | 'payment_reminder' | 'payment_failed';
+      recipientEmail: string;
+      recipientName?: string;
+      variables?: Record<string, any>;
+    }
+  ): Promise<boolean> {
+    try {
+      console.log(`📧 Procesando identificador específico de comunicación: ${identifier}`);
+
+      await billingCommunicationService.processBillingCommunicationIdentifier(
+        identifier,
+        context
+      );
+
+      console.log(`✅ Identificador ${identifier} procesado exitosamente`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Error procesando identificador ${identifier}:`, error);
+      return false;
+    }
   }
 }
 

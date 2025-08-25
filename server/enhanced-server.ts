@@ -620,6 +620,257 @@ app.get("/api/payments", authenticateUser, (req: any, res) => {
 });
 
 // ================================
+// RUTAS BILLING COMMUNICATION
+// ================================
+
+app.post("/api/billing-communication/process", authenticateUser, async (req: any, res) => {
+  try {
+    const { 
+      identifier, 
+      paymentId, 
+      documentId, 
+      type = 'payment_confirmation',
+      recipientEmail, 
+      recipientName, 
+      variables = {}
+    } = req.body;
+
+    // Validate required fields
+    if (!identifier) {
+      return res.status(400).json({
+        success: false,
+        message: 'Se requiere el campo identifier'
+      });
+    }
+
+    // Use authenticated user's email if not provided
+    const email = recipientEmail || req.user.email;
+    const name = recipientName || req.user.fullName;
+
+    // If paymentId is provided, get payment details
+    let paymentDetails = null;
+    if (paymentId) {
+      paymentDetails = paymentManager.getPaymentIntent(paymentId);
+      if (!paymentDetails) {
+        return res.status(404).json({
+          success: false,
+          message: `Pago no encontrado: ${paymentId}`
+        });
+      }
+    }
+
+    // Prepare variables with payment details if available
+    const templateVariables = {
+      userName: name,
+      documentTitle: variables.documentTitle || 'Documento',
+      documentId: documentId || 'N/A',
+      paymentAmount: paymentDetails?.amount || variables.paymentAmount || 0,
+      paymentId: paymentId || 'N/A',
+      currentDate: new Date().toLocaleString('es-CL'),
+      ...variables
+    };
+
+    // Process billing communication using payment manager
+    const success = await paymentManager.processSpecificBillingCommunication(
+      identifier,
+      {
+        userId: req.user.id,
+        paymentId,
+        documentId,
+        type: type as any,
+        recipientEmail: email,
+        recipientName: name,
+        variables: templateVariables
+      }
+    );
+
+    if (success) {
+      res.json({
+        success: true,
+        message: `Comunicación de facturación ${identifier} procesada exitosamente`,
+        data: {
+          identifier,
+          recipientEmail: email,
+          type,
+          processedAt: new Date().toISOString()
+        }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Error procesando la comunicación de facturación'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error procesando comunicación de facturación:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+app.post("/api/billing-communication/process/bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4", authenticateUser, async (req: any, res) => {
+  try {
+    const identifier = 'bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4';
+    const { 
+      paymentId, 
+      documentId, 
+      type = 'payment_confirmation',
+      variables = {}
+    } = req.body;
+
+    console.log(`📧 Procesando identificador específico: ${identifier}`);
+
+    // If paymentId is provided, get payment details
+    let paymentDetails = null;
+    if (paymentId) {
+      paymentDetails = paymentManager.getPaymentIntent(paymentId);
+      if (!paymentDetails) {
+        return res.status(404).json({
+          success: false,
+          message: `Pago no encontrado: ${paymentId}`
+        });
+      }
+    }
+
+    // Prepare variables with payment details if available
+    const templateVariables = {
+      userName: req.user.fullName,
+      documentTitle: variables.documentTitle || 'Documento NotaryPro',
+      documentId: documentId || 'DOC-' + Date.now(),
+      paymentAmount: paymentDetails?.amount || variables.paymentAmount || 50000,
+      paymentId: paymentId || 'PAY-DEMO-' + Date.now(),
+      currentDate: new Date().toLocaleString('es-CL'),
+      transactionId: paymentDetails?.transactionId || 'TXN-' + Date.now(),
+      ...variables
+    };
+
+    // Process the specific billing communication identifier
+    const success = await paymentManager.processSpecificBillingCommunication(
+      identifier,
+      {
+        userId: req.user.id,
+        paymentId,
+        documentId,
+        type: type as any,
+        recipientEmail: req.user.email,
+        recipientName: req.user.fullName,
+        variables: templateVariables
+      }
+    );
+
+    if (success) {
+      res.json({
+        success: true,
+        message: `Identificador de comunicación de facturación ${identifier} procesado exitosamente`,
+        data: {
+          identifier,
+          type,
+          recipientEmail: req.user.email,
+          recipientName: req.user.fullName,
+          processedAt: new Date().toISOString(),
+          variables: templateVariables,
+          paymentDetails: paymentDetails ? {
+            id: paymentDetails.id,
+            amount: paymentDetails.amount,
+            currency: paymentDetails.currency,
+            status: paymentDetails.status
+          } : null
+        }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: `Error procesando el identificador ${identifier}`
+      });
+    }
+
+  } catch (error) {
+    console.error(`Error procesando identificador bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+app.get("/api/billing-communication/test/bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4", (req, res) => {
+  try {
+    const identifier = 'bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4';
+    
+    res.json({
+      success: true,
+      message: `Test del identificador de comunicación de facturación: ${identifier}`,
+      data: {
+        identifier,
+        description: 'Identificador de comunicación de facturación para NotaryPro',
+        status: 'active',
+        supportedTypes: ['payment_confirmation', 'payment_reminder', 'payment_failed'],
+        testEndpoint: `/api/billing-communication/process/${identifier}`,
+        systemReady: true,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en test de comunicación:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
+
+app.post("/api/payments/:id/send-reminder", authenticateUser, async (req: any, res) => {
+  try {
+    const paymentId = req.params.id;
+    const { dueDate } = req.body;
+    
+    const payment = paymentManager.getPaymentIntent(paymentId);
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Pago no encontrado'
+      });
+    }
+
+    if (payment.userId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'No autorizado para este pago'
+      });
+    }
+
+    const success = await paymentManager.sendPaymentReminderCommunication(
+      paymentId, 
+      dueDate ? new Date(dueDate) : undefined
+    );
+
+    res.json({
+      success,
+      message: success ? 'Recordatorio de pago enviado' : 'Error enviando recordatorio',
+      data: {
+        paymentId,
+        status: payment.status,
+        amount: payment.amount,
+        currency: payment.currency
+      }
+    });
+
+  } catch (error) {
+    console.error('Error enviando recordatorio de pago:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
+
+// ================================
 // RUTAS RON (Remote Online Notarization)
 // ================================
 
@@ -1321,6 +1572,12 @@ async function startEnhancedServer() {
        console.log("      POST /api/payments/calculate - Calcular total");
        console.log("      POST /api/payments/create - Crear pago");
        console.log("      GET  /api/payments - Mis pagos");
+       console.log("      POST /api/payments/:id/send-reminder - Enviar recordatorio de pago");
+       console.log("");
+       console.log("   📧 COMUNICACIONES DE FACTURACIÓN:");
+       console.log("      POST /api/billing-communication/process - Procesar comunicación");
+       console.log("      POST /api/billing-communication/process/bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4 - Procesar identificador específico");
+       console.log("      GET  /api/billing-communication/test/bc-5e21459e-c717-463a-b2f1-0f12ab7abbe4 - Test del identificador");
        console.log("");
        console.log("   🎥 RON (Remote Online Notarization):");
        console.log("      POST /api/ron/schedule - Programar sesión RON");
