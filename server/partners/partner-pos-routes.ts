@@ -19,6 +19,9 @@ export const partnerPosRouter = Router();
 // Get POS integration status for the partner
 partnerPosRouter.get("/status", isPartner, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
     const partnerId = req.user.id;
     
     // Get partner details

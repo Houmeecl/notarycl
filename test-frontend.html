@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocuSignPro - Prueba de Funcionalidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8 text-blue-600">
+            🚀 DocuSignPro - Prueba de Funcionalidad
+        </h1>
+        
+        <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <!-- Estado del Servidor -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">📡 Estado del Servidor</h2>
+                <div id="server-status" class="space-y-2">
+                    <button onclick="checkHealth()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        Verificar Estado
+                    </button>
+                    <div id="health-result" class="mt-2"></div>
+                </div>
+            </div>
+            
+            <!-- Lista de Usuarios -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">👥 Usuarios</h2>
+                <div id="users-section">
+                    <button onclick="loadUsers()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                        Cargar Usuarios
+                    </button>
+                    <div id="users-list" class="mt-2"></div>
+                </div>
+            </div>
+            
+            <!-- Registro de Usuario -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">📝 Registro</h2>
+                <form id="register-form" class="space-y-4">
+                    <input type="text" id="reg-username" placeholder="Usuario" class="w-full p-2 border rounded">
+                    <input type="password" id="reg-password" placeholder="Contraseña" class="w-full p-2 border rounded">
+                    <input type="email" id="reg-email" placeholder="Email" class="w-full p-2 border rounded">
+                    <input type="text" id="reg-fullname" placeholder="Nombre Completo" class="w-full p-2 border rounded">
+                    <button type="submit" class="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600">
+                        Registrar Usuario
+                    </button>
+                </form>
+                <div id="register-result" class="mt-2"></div>
+            </div>
+            
+            <!-- Login -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">🔐 Login</h2>
+                <form id="login-form" class="space-y-4">
+                    <input type="text" id="login-username" placeholder="Usuario" class="w-full p-2 border rounded">
+                    <input type="password" id="login-password" placeholder="Contraseña" class="w-full p-2 border rounded">
+                    <button type="submit" class="w-full bg-orange-500 text-white py-2 rounded hover:bg-orange-600">
+                        Iniciar Sesión
+                    </button>
+                </form>
+                <div id="login-result" class="mt-2"></div>
+            </div>
+        </div>
+        
+        <!-- Log de Actividad -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6 max-w-4xl mx-auto">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">📋 Log de Actividad</h2>
+            <div id="activity-log" class="bg-gray-50 p-4 rounded text-sm font-mono h-40 overflow-y-auto">
+                <!-- Los logs aparecerán aquí -->
+            </div>
+            <button onclick="clearLog()" class="mt-2 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                Limpiar Log
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('activity-log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('activity-log').innerHTML = '';
+        }
+        
+        async function checkHealth() {
+            try {
+                log('🔍 Verificando estado del servidor...');
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                document.getElementById('health-result').innerHTML = `
+                    <div class="p-3 bg-green-100 border border-green-400 rounded">
+                        <strong>✅ Servidor OK</strong><br>
+                        Mensaje: ${data.message}<br>
+                        Usuarios: ${data.users}<br>
+                        Timestamp: ${data.timestamp}
+                    </div>
+                `;
+                log('✅ Estado del servidor verificado correctamente');
+            } catch (error) {
+                document.getElementById('health-result').innerHTML = `
+                    <div class="p-3 bg-red-100 border border-red-400 rounded">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+                log(`❌ Error verificando servidor: ${error.message}`);
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                log('👥 Cargando lista de usuarios...');
+                const response = await fetch('/api/users');
+                const users = await response.json();
+                
+                let usersHtml = '<div class="space-y-2">';
+                users.forEach(user => {
+                    usersHtml += `
+                        <div class="p-2 bg-gray-50 rounded border">
+                            <strong>${user.fullName}</strong> (@${user.username})<br>
+                            <small class="text-gray-600">${user.email} - ${user.role}</small>
+                        </div>
+                    `;
+                });
+                usersHtml += '</div>';
+                
+                document.getElementById('users-list').innerHTML = usersHtml;
+                log(`✅ ${users.length} usuarios cargados`);
+            } catch (error) {
+                document.getElementById('users-list').innerHTML = `
+                    <div class="p-3 bg-red-100 border border-red-400 rounded">
+                        <strong>❌ Error:</strong> ${error.message}
+                    </div>
+                `;
+                log(`❌ Error cargando usuarios: ${error.message}`);
+            }
+        }
+        
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const email = document.getElementById('reg-email').value;
+            const fullName = document.getElementById('reg-fullname').value;
+            
+            try {
+                log(`📝 Registrando usuario: ${username}`);
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, email, fullName })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('register-result').innerHTML = `
+                        <div class="p-3 bg-green-100 border border-green-400 rounded">
+                            <strong>✅ ${data.message}</strong><br>
+                            Usuario: ${data.user.username}
+                        </div>
+                    `;
+                    document.getElementById('register-form').reset();
+                    log(`✅ Usuario ${username} registrado exitosamente`);
+                } else {
+                    document.getElementById('register-result').innerHTML = `
+                        <div class="p-3 bg-red-100 border border-red-400 rounded">
+                            <strong>❌ Error:</strong> ${data.message}
+                        </div>
+                    `;
+                    log(`❌ Error registrando ${username}: ${data.message}`);
+                }
+            } catch (error) {
+                log(`❌ Error en registro: ${error.message}`);
+            }
+        });
+        
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                log(`🔐 Intentando login: ${username}`);
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('login-result').innerHTML = `
+                        <div class="p-3 bg-green-100 border border-green-400 rounded">
+                            <strong>✅ ${data.message}</strong><br>
+                            Bienvenido: ${data.user.fullName}<br>
+                            Rol: ${data.user.role}
+                        </div>
+                    `;
+                    log(`✅ Login exitoso para ${username}`);
+                } else {
+                    document.getElementById('login-result').innerHTML = `
+                        <div class="p-3 bg-red-100 border border-red-400 rounded">
+                            <strong>❌ Error:</strong> ${data.message}
+                        </div>
+                    `;
+                    log(`❌ Login fallido para ${username}: ${data.message}`);
+                }
+            } catch (error) {
+                log(`❌ Error en login: ${error.message}`);
+            }
+        });
+        
+        // Cargar estado inicial
+        window.addEventListener('load', () => {
+            log('🌐 Página de prueba cargada');
+            checkHealth();
+        });
+    </script>
+</body>
+</html>

@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { setupAuth, hashPassword } from "./auth";
 import { storage } from "./storage";
+import { initializeFirstAdmin } from "./init-admin";
 import { documentForensicsRouter } from "./document-forensics-routes";
 import { identityVerificationRouter } from "./identity-verification-routes";
 import { contractRouter } from "./contract-routes";
@@ -59,10 +60,16 @@ export function registerRoutes(app: Express): Server {
   app.use("/docs", express.static(path.join(process.cwd(), "docs")));
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-  // Inicializar admins de prueba si no existen
-  initializeTestAdmins().catch(error => {
-    console.error("Error inicializando admins de prueba:", error);
+  // Inicializar primer administrador de forma segura
+  initializeFirstAdmin().catch(error => {
+    console.error("Error inicializando primer administrador:", error);
   });
+
+  // ⚠️ USUARIOS DE PRUEBA DESHABILITADOS POR SEGURIDAD
+  // Descomentar solo para desarrollo local si es necesario
+  // initializeTestAdmins().catch(error => {
+  //   console.error("Error inicializando admins de prueba:", error);
+  // });
 
   // Crea el servidor HTTP
   const httpServer = createServer(app);
